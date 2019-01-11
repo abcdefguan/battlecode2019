@@ -1,0 +1,1 @@
+bc19run -b bots/guanplayer -r bots/examplefuncsplayer --chi 1000 --debug --replay replay.bc19

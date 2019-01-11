@@ -1,0 +1,16 @@
+Todo
+- Determine map symmetries automatically
+- Build 10 knights (move out of the way when full)
+- Rally knights to move to enemy castles and attack them
+- Announce that a castle has been destroyed and act accordingly, check if a castle has been destroyed, do micro move
+- Add code for knights to micro
+- Move to guanplayer2
+- Get first pilgrim to harvest from richest deposit first
+8835395379 
+
+Weaknesses
+- Fails if enemy builds church => Need to scout for it, broadcast then add churches to list of enemies
+
+Improvements
+- Send crusaders to go fight enemy’s pilgrims
+
