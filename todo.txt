@@ -6,6 +6,7 @@ Todo
 - Add code for knights to micro
 - Move to guanplayer2
 - Get first pilgrim to harvest from richest deposit first
+- Update micro code to improve knight micro
 8835395379 
 
 Weaknesses
@@ -13,4 +14,12 @@ Weaknesses
 
 Improvements
 - Send crusaders to go fight enemy’s pilgrims
+- Knowledge of all friendly castles
+- Assign scouting targets if no targets
 
+Impt
+- Fix bug with blue micro
+- Test single base vs split base
+- Get workers working
+- Update micro code to be more powerful
+- Group army units into a single bunch, signal to find all castle positions

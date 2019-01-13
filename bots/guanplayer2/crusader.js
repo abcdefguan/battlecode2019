@@ -68,11 +68,12 @@ export class Crusader extends AbstractUnit{
 			let minDist = 1000000000;
 			for (let j = 0; j < enemyRobots.length; j++){
 				let robot = enemyRobots[j];
-				let dist = this.distSquared([bc.me.x, bc.me.y],  [robot.x, robot.y]);
+				let dist = this.distSquared([bc.me.x + dir[0], bc.me.y + dir[1]],  [robot.x, robot.y]);
 				minDist = Math.min(minDist, dist);
 			}
+			//bc.log(`Move ${dir} has dist ${minDist}`);
 			if (minDist < leastDist){
-				minDist = leastDist;
+				leastDist = minDist;
 				bestMove = i;
 			}
 		}

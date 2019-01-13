@@ -20,7 +20,9 @@ export class AbstractUnit{
 		else{
 			bc.log("Map is vertically symmetric");
 		}
-		this.enemy_castles = this.getEnemyCastles(bc);
+		this.visibleRobots = bc.getVisibleRobots();
+		this.friendly_castles = this.getFriendlyCastles(bc); //Only gets visible friendly castles, need to be appended onto
+		this.enemy_castles = this.getEnemyCastles(bc, this.friendly_castles);
 		this.attack_mode = false; //Is in attack mode?
 		//bc.log("Enemy castles predicted at: " + this.enemy_castles);
 		this.actions = []; //No actions to take
@@ -30,6 +32,8 @@ export class AbstractUnit{
 	takeTurn(bc){
 		this.step++;
 		this.robomap = bc.getVisibleRobotMap(); //Generate robot map once
+		this.visibleRobots = bc.getVisibleRobots(); //Get visible robots
+		let removedCastle = false;
 		//Check if can sense enemy castle positions
 		for (let i = 0; i < this.enemy_castles.length; i++){
 			let rob = this.robomap[this.enemy_castles[i][1]][this.enemy_castles[i][0]];
@@ -40,6 +44,7 @@ export class AbstractUnit{
 					//Not a valid enemy castle
 					bc.log("Castle was not a castle!!!");
 					this.enemy_castles.splice(i, 1);
+					removedCastle = true;
 					i--;
 					continue;
 				}
@@ -48,13 +53,36 @@ export class AbstractUnit{
 				bc.log("Castle was not found!!!");
 				//Not a valid enemy castle
 				this.enemy_castles.splice(i, 1);
+				removedCastle = true;
 				i--;
 				continue;
 			}
 		}
+		if (removedCastle){
+			this.actions = this.makeMoveQueue(bc, bc.me.x, bc.me.y, this.enemy_castles);
+		}
 
 		//Only execute this on mobile units
 		if (bc.me.unit != SPECS.CASTLE && bc.me.unit != SPECS.CHURCH){
+			//Check for broadcast messages coming from friendly castles
+			for (let i = 0; i < this.visibleRobots.length; i++){
+				let robot = this.visibleRobots[i];
+				if (robot.team == bc.me.team && robot.unit == SPECS.CASTLE){
+					let signal = robot.signal;
+					//Castle signal
+					//bc.log(`Read signal ${signal}`);
+					if (signal == -1){
+						//Ignore
+					}
+					else if (signal < 4096){
+						//Multiply / Divide by 64 to store info
+						let newCastle = [Math.floor(signal / 64), signal % 64];
+						this.addFriendlyCastle(newCastle);
+						this.enemy_castles = this.getEnemyCastles(bc, this.friendly_castles);
+					}
+				}
+			}
+			//bc.log(this.friendly_castles);
 			//Triggers attack mode when there is enough fuel
 			if (bc.fuel >= constants.attackFuel){
 				//bc.log("Entering attack mode");
@@ -397,6 +425,7 @@ export class AbstractUnit{
 					targetX = newPos[0];
 					targetY = newPos[1];
 					bc.log("Done. Exiting BFS");
+					queue = [];
 					//bc.log("targetX: " + targetX + "targetY: " + targetY);
 					break;
 				}
@@ -474,17 +503,30 @@ export class AbstractUnit{
 		return this.isWithinRange(bc, other) && bc.fuel >= SPECS.UNITS[bc.me.unit].ATTACK_FUEL_COST;
 	}
 
-	/**
-		Returns a list of points [x,y] indicating the locations of the enemy castles
-	*/
-	getEnemyCastles(bc){
-		let robots = bc.getVisibleRobots();
-		let enemyCastles = [];
+	addFriendlyCastle(newCastle){
+		for (let j = 0; j < this.friendly_castles.length; j++){
+			if (newCastle[0] == this.friendly_castles[j][0] && newCastle[1] == this.friendly_castles[j][1]){
+				return;
+			}
+		}
+		this.friendly_castles.push(newCastle);
+	}
+
+	getFriendlyCastles(bc){
+		let robots = this.visibleRobots;
+		let friendlyCastles = [];
 		for (let i = 0; i < robots.length; i++){
 			if (robots[i].team == bc.me.team && robots[i].unit == SPECS.CASTLE){
-				bc.log(`Friendly castle at ${robots[i].x}, ${robots[i].y}`)
-				enemyCastles.push(this.getOppositePoint(robots[i].x, robots[i].y, this.map_horizontal_symmetry));
+				friendlyCastles.push([robots[i].x, robots[i].y]);
 			}
+		}
+		return friendlyCastles;
+	}
+
+	getEnemyCastles(bc, friendlyCastles){
+		let enemyCastles = [];
+		for (let i = 0; i < friendlyCastles.length; i++){
+			enemyCastles.push(this.getOppositePoint(friendlyCastles[i][0], friendlyCastles[i][1], this.map_horizontal_symmetry));
 		}
 		return enemyCastles;
 	}
@@ -493,13 +535,20 @@ export class AbstractUnit{
 		@return whether this unit should conduct micro
 	*/
 	shouldMicro(bc){
-		let robots = bc.getVisibleRobots();
+		let robots = this.visibleRobots;
+		let nearestEnemy = 1000000000;
 		for (let i = 0; i < robots.length; i++){
 			let other = robots[i];
-			if (other.team != bc.me.team && this.distSquared([bc.me.x, bc.me.y], [other.x, other.y]) <= constants.microRadius){
+			let distSquared = this.distSquared([bc.me.x, bc.me.y], [other.x, other.y]);
+			if (other.team != bc.me.team){
+				nearestEnemy = Math.min(nearestEnemy, distSquared);
+			}
+			if (other.team != bc.me.team && distSquared <= constants.microRadius){
+				//bc.log("Nearest Enemy is too close");
 				return true;
 			}
 		}
+		//bc.log(`Nearest Enemy at ${nearestEnemy}`);
 		return false;
 	}
 
