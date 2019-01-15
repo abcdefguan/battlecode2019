@@ -266,9 +266,11 @@ const constants = {
 	maxSignalRadius : 9, //Radius to be signalled by castles
 	maxAlertRadius: 16, //Maximum radius to send an alert
 	alertCooldown: 20, //Number of turns in which a new alert can be issued
-	alertUnitType: SPECS.CRUSADER, //Unit type to be produced on alert
-	karboniteReserve: 40, //Amt of karbonite reserved for alerts
+	alertUnitType: SPECS.PROPHET, //Unit type to be produced on alert
+	karboniteReserve: 50, //Amt of karbonite reserved for alerts
 	defaultSpread: 3, //Default amt to spread out by
+	rushTurn: 30, //Turn at which to force attack
+	noSignalFuel: 250, //Fuel level below which no signalling occurs
 };
 
 /**
@@ -424,7 +426,7 @@ class AbstractUnit{
 						return this.moveToTarget(bc, [tgt], constants.dirFuelSave, false);
 					}
 				}
-				if (bc.fuel >= constants.attackFuel){
+				if (bc.fuel >= constants.attackFuel || bc.me.turn >= constants.rushTurn || bc.me.health != SPECS.UNITS[bc.me.unit].STARTING_HP){
 					//bc.log("Entering attack mode");
 					this.attack_mode = true;
 				}
@@ -846,7 +848,7 @@ class AbstractUnit{
 			}
 			else{
 				//Move is invalid, recompute
-				this.actions = this.makeMoveQueue(bc, bc.me.x, bc.me.y, targets, dir, passThruUnits);
+				this.actions = this.makeMoveQueue(bc, bc.me.x, bc.me.y, targets, dir, false);
 				if (this.actions.length != 0){
 					action = this.actions.splice(0, 1)[0];
 					newPos = [bc.me.x + action[0], bc.me.y + action[1]];
@@ -856,6 +858,7 @@ class AbstractUnit{
 				}
 				//Give up if unable to move
 				bc.log("Gave up moving");
+				//bc.log(targets);
 			}
 		}
 		bc.log("No valid move");
@@ -871,6 +874,9 @@ class AbstractUnit{
 		//TODO: Get nearby alerting units
 		//TODO: Check if all non alerting units are covered by alerting units (maxRadius)
 		//TODO: If some non alerting unit is not covered, signal the alert
+		if (bc.fuel <= constants.noSignalFuel){
+			return;
+		}
 		let alertUnits = [];
 		for (let i = 0; i < this.visibleRobots.length; i++){
 			let robot = this.visibleRobots[i];
@@ -1301,7 +1307,7 @@ class Castle extends AbstractUnit{
 					}*/
 					bc.log(`We has ${bc.karbonite} karbonite and ${bc.fuel} fuel. Next unit at castle ${next_build_unit[1]}`);
 					//Need to be robust, override requirement for specific castle if turn is > 15 and we have > 30 karbonite
-					if (next_build_unit[1] == this.castle_id || castleDestroyed || bc.karbonite > 60){
+					if (next_build_unit[1] == this.castle_id || castleDestroyed || (bc.karbonite > 60 && bc.fuel > 750)){
 						//Build the relevant unit, then signal
 						//Reserve 40 karbonite in case of attack
 						let action = this.buildUnit(bc, next_build_unit[0], constants.karboniteReserve);
@@ -1333,16 +1339,16 @@ class Castle extends AbstractUnit{
 		//This is to be called when initial units are exhausted
 		//3:1 crusader:pilgrim ratio (Should be adjusted)
 		if (numCastles == 1){
-			return [[SPECS.CRUSADER, 1], [SPECS.CRUSADER, 1], [SPECS.CRUSADER, 1], [SPECS.PILGRIM, 1]];
+			return [[SPECS.PROPHET, 1], [SPECS.PROPHET, 1], [SPECS.PROPHET, 1], [SPECS.PILGRIM, 1]];
 		}
 		else if (numCastles == 2){
-			return [[SPECS.CRUSADER, 1], [SPECS.CRUSADER, 2], [SPECS.CRUSADER, 1], [SPECS.PILGRIM, 1],
-			[SPECS.CRUSADER, 2], [SPECS.CRUSADER, 1], [SPECS.CRUSADER, 2], [SPECS.PILGRIM, 2]];
+			return [[SPECS.PROPHET, 1], [SPECS.PROPHET, 2], [SPECS.PROPHET, 1], [SPECS.PILGRIM, 1],
+			[SPECS.PROPHET, 2], [SPECS.PROPHET, 1], [SPECS.PROPHET, 2], [SPECS.PILGRIM, 2]];
 		}
 		else if (numCastles == 3){
-			return [[SPECS.CRUSADER, 1], [SPECS.CRUSADER, 2], [SPECS.CRUSADER, 3], [SPECS.PILGRIM, 1],
-			[SPECS.CRUSADER, 1], [SPECS.CRUSADER, 2], [SPECS.CRUSADER, 3], [SPECS.PILGRIM, 2],
-			[SPECS.CRUSADER, 1], [SPECS.CRUSADER, 2], [SPECS.CRUSADER, 3], [SPECS.PILGRIM, 3]];
+			return [[SPECS.PROPHET, 1], [SPECS.PROPHET, 2], [SPECS.PROPHET, 3], [SPECS.PILGRIM, 1],
+			[SPECS.PROPHET, 1], [SPECS.PROPHET, 2], [SPECS.PROPHET, 3], [SPECS.PILGRIM, 2],
+			[SPECS.PROPHET, 1], [SPECS.PROPHET, 2], [SPECS.PROPHET, 3], [SPECS.PILGRIM, 3]];
 		}
 	}
 
@@ -1569,6 +1575,112 @@ class Pilgrim extends AbstractUnit{
 
 }
 
+/**
+	This class provides methods specific to the crusader
+*/
+
+class Prophet extends AbstractUnit{
+	/**
+		Creates an instance of the abstract unit
+		@param battleCode the main class provided by the battlecode source
+	*/
+	constructor(bc){
+		super(bc);
+	}
+
+	takeTurn(bc){
+		//Note: return this if it is not undefined
+		let cmd = super.takeTurn(bc); //Perform any behaviour shared by all units before taking turn
+		if (cmd){
+			//bc.log("Following abstract unit command");
+			return cmd;
+		}
+		/*const choices = [[0,-1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]];
+        const choice = choices[Math.floor(Math.random()*choices.length)]
+        return bc.move(...choice);*/
+        /*if (this.shouldMicro(bc)){
+        	//Perform micro move
+        }
+        else{
+        	//Act normally
+        	if (bc.fuel >= constants.attackFuel){
+        		//TODO: Issue attack command on nearest castle
+        	}
+        	else{
+        		//Do nothing
+        	}
+        }*/
+	}
+
+	/**
+		@return an attack or move based on the micro
+	*/
+	microMove(bc){
+		//bc.log("Micro Moving");
+		//TODO: Return an attack or move based on the micro
+		//Naive: Attack anything in range
+		let visibleRobots = bc.getVisibleRobots();
+		let enemyRobots = [];
+		let bestTarget = -1;
+		let bestScore = -1000000000;
+		for (let i = 0; i < visibleRobots.length; i++){
+			let robot = visibleRobots[i];
+			
+			if (robot.team != bc.me.team && this.canAttack(bc, robot)){
+				//bc.log(`Attackable robot with ID ${robot.id}`)
+				let score = this.getAttackScore(bc, robot);
+				if (score > bestScore){
+					bestScore = score;
+					bestTarget = i;
+				}
+				//return bc.attack(robot.x - bc.me.x, robot.y - bc.me.y);
+			}
+			if (robot.team != bc.me.team){
+				enemyRobots.push(visibleRobots[i]);
+			}
+		}
+		if (bestTarget != -1){
+			let robot = visibleRobots[bestTarget];
+			return bc.attack(robot.x - bc.me.x, robot.y - bc.me.y);
+		}
+		bestScore = -1000000000;
+		let bestMove = 0;
+		//Naive: Move to closest position to all visible enemy robots
+		for (let i = 0; i < constants.dirFast.length; i++){
+			let dir = constants.dirFast[i];
+			if (this.isOccupied(bc, bc.me.x + dir[0], bc.me.y + dir[1])){
+				continue;
+			}
+			let score = 0;
+			for (let j = 0; j < enemyRobots.length; j++){
+				let robot = enemyRobots[j];
+				if (this.isWithinRange(bc, robot)){
+					if (robot.type != SPECS.PROPHET){
+						score += (100 - this.distSquared([bc.me.x, bc.me.y], [robot.x, robot.y])) * 1000;
+					}
+					else{
+						score -= 100;
+					}
+				}
+			}
+			//bc.log(`Move ${dir} has dist ${minDist}`);
+			if (score > bestScore){
+				bestScore = score;
+				bestMove = i;
+			}
+		}
+		return bc.move(constants.dirReallyFast[bestMove][0], constants.dirReallyFast[bestMove][1]);
+	}
+
+	getAttackScore(bc, other){
+		//Attack closest and highest ID
+		let distScore = (100 - this.distSquared([bc.me.x, bc.me.y], [other.x, other.y])) * 1000;
+		return distScore + other.id;
+	}
+
+
+}
+
 class MyRobot extends BCAbstractRobot {
     constructor(){
         super();
@@ -1586,6 +1698,9 @@ class MyRobot extends BCAbstractRobot {
             }
             else if (this.me.unit == SPECS.PILGRIM){
                 this.robot = new Pilgrim(this);
+            }
+            else if (this.me.unit == SPECS.PROPHET){
+                this.robot = new Prophet(this);
             }
         }
         return this.robot.takeTurn(this);

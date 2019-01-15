@@ -155,7 +155,7 @@ export class AbstractUnit{
 						return this.moveToTarget(bc, [tgt], constants.dirFuelSave, false);
 					}
 				}
-				if (bc.fuel >= constants.attackFuel || bc.me.turn >= constants.rushTurn){
+				if (bc.fuel >= constants.attackFuel || bc.me.turn >= constants.rushTurn || bc.me.health != SPECS.UNITS[bc.me.unit].STARTING_HP){
 					//bc.log("Entering attack mode");
 					this.attack_mode = true;
 				}
@@ -577,7 +577,7 @@ export class AbstractUnit{
 			}
 			else{
 				//Move is invalid, recompute
-				this.actions = this.makeMoveQueue(bc, bc.me.x, bc.me.y, targets, dir, passThruUnits);
+				this.actions = this.makeMoveQueue(bc, bc.me.x, bc.me.y, targets, dir, false);
 				if (this.actions.length != 0){
 					action = this.actions.splice(0, 1)[0];
 					newPos = [bc.me.x + action[0], bc.me.y + action[1]];
@@ -587,6 +587,7 @@ export class AbstractUnit{
 				}
 				//Give up if unable to move
 				bc.log("Gave up moving");
+				//bc.log(targets);
 			}
 		}
 		bc.log("No valid move");
@@ -602,6 +603,9 @@ export class AbstractUnit{
 		//TODO: Get nearby alerting units
 		//TODO: Check if all non alerting units are covered by alerting units (maxRadius)
 		//TODO: If some non alerting unit is not covered, signal the alert
+		if (bc.fuel <= constants.noSignalFuel){
+			return;
+		}
 		let alertUnits = [];
 		for (let i = 0; i < this.visibleRobots.length; i++){
 			let robot = this.visibleRobots[i];

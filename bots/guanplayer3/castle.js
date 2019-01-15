@@ -192,16 +192,16 @@ export class Castle extends AbstractUnit{
 		//This is to be called when initial units are exhausted
 		//3:1 crusader:pilgrim ratio (Should be adjusted)
 		if (numCastles == 1){
-			return [[SPECS.CRUSADER, 1], [SPECS.CRUSADER, 1], [SPECS.CRUSADER, 1], [SPECS.PILGRIM, 1]];
+			return [[SPECS.PROPHET, 1], [SPECS.PROPHET, 1], [SPECS.PROPHET, 1], [SPECS.PILGRIM, 1]];
 		}
 		else if (numCastles == 2){
-			return [[SPECS.CRUSADER, 1], [SPECS.CRUSADER, 2], [SPECS.CRUSADER, 1], [SPECS.PILGRIM, 1],
-			[SPECS.CRUSADER, 2], [SPECS.CRUSADER, 1], [SPECS.CRUSADER, 2], [SPECS.PILGRIM, 2]];
+			return [[SPECS.PROPHET, 1], [SPECS.PROPHET, 2], [SPECS.PROPHET, 1], [SPECS.PILGRIM, 1],
+			[SPECS.PROPHET, 2], [SPECS.PROPHET, 1], [SPECS.PROPHET, 2], [SPECS.PILGRIM, 2]];
 		}
 		else if (numCastles == 3){
-			return [[SPECS.CRUSADER, 1], [SPECS.CRUSADER, 2], [SPECS.CRUSADER, 3], [SPECS.PILGRIM, 1],
-			[SPECS.CRUSADER, 1], [SPECS.CRUSADER, 2], [SPECS.CRUSADER, 3], [SPECS.PILGRIM, 2],
-			[SPECS.CRUSADER, 1], [SPECS.CRUSADER, 2], [SPECS.CRUSADER, 3], [SPECS.PILGRIM, 3]];
+			return [[SPECS.PROPHET, 1], [SPECS.PROPHET, 2], [SPECS.PROPHET, 3], [SPECS.PILGRIM, 1],
+			[SPECS.PROPHET, 1], [SPECS.PROPHET, 2], [SPECS.PROPHET, 3], [SPECS.PILGRIM, 2],
+			[SPECS.PROPHET, 1], [SPECS.PROPHET, 2], [SPECS.PROPHET, 3], [SPECS.PILGRIM, 3]];
 		}
 	}
 

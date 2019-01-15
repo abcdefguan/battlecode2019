@@ -2,6 +2,7 @@ import {BCAbstractRobot, SPECS} from 'battlecode';
 import {Crusader} from 'crusader.js';
 import {Castle} from 'castle.js';
 import {Pilgrim} from 'pilgrim.js';
+import {Prophet} from 'prophet.js';
 
 class MyRobot extends BCAbstractRobot {
     constructor(){
@@ -20,6 +21,9 @@ class MyRobot extends BCAbstractRobot {
             }
             else if (this.me.unit == SPECS.PILGRIM){
                 this.robot = new Pilgrim(this);
+            }
+            else if (this.me.unit == SPECS.PROPHET){
+                this.robot = new Prophet(this);
             }
         }
         return this.robot.takeTurn(this);
