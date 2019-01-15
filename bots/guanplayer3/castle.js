@@ -160,7 +160,7 @@ export class Castle extends AbstractUnit{
 					}*/
 					bc.log(`We has ${bc.karbonite} karbonite and ${bc.fuel} fuel. Next unit at castle ${next_build_unit[1]}`);
 					//Need to be robust, override requirement for specific castle if turn is > 15 and we have > 30 karbonite
-					if (next_build_unit[1] == this.castle_id || castleDestroyed || bc.karbonite > 60){
+					if (next_build_unit[1] == this.castle_id || castleDestroyed || (bc.karbonite > 60 && bc.fuel > 750)){
 						//Build the relevant unit, then signal
 						//Reserve 40 karbonite in case of attack
 						let action = this.buildUnit(bc, next_build_unit[0], constants.karboniteReserve);

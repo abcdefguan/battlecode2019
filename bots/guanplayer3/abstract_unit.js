@@ -155,7 +155,7 @@ export class AbstractUnit{
 						return this.moveToTarget(bc, [tgt], constants.dirFuelSave, false);
 					}
 				}
-				if (bc.fuel >= constants.attackFuel){
+				if (bc.fuel >= constants.attackFuel || bc.me.turn >= constants.rushTurn){
 					//bc.log("Entering attack mode");
 					this.attack_mode = true;
 				}

@@ -268,6 +268,7 @@ const constants = {
 	alertCooldown: 20, //Number of turns in which a new alert can be issued
 	alertUnitType: SPECS.CRUSADER, //Unit type to be produced on alert
 	karboniteReserve: 40, //Amt of karbonite reserved for alerts
+	defaultSpread: 3, //Default amt to spread out by
 };
 
 /**
@@ -299,6 +300,15 @@ class AbstractUnit{
 		this.alert_cooldown = 0; //Used to determine if this unit can/will broadcast an alert
 		this.should_micro = false; //Used to determine whether this unit should micro
 		this.spotted_enemy = null; //Location of enemy spotted
+		this.ownerCastle = [0, 0]; //Should not be this value, should be defined as some other value
+		for (let i = 0; i < this.visibleRobots.length; i++){
+			let robot = this.visibleRobots[i];
+			if ((robot.unit == SPECS.CASTLE || robot.unit == SPECS.CHURCH) && robot.team == bc.me.team && this.distSquared([bc.me.x, bc.me.y], [robot.x, robot.y]) <= 2){
+				this.ownerCastle = [robot.x, robot.y];
+				bc.log(`Owner castle is at (${robot.x},${robot.y})`);
+				break;
+			}
+		}
 		//this.bc = battleCode;
 	}
 
@@ -311,6 +321,9 @@ class AbstractUnit{
 		this.should_micro = shouldMicro;
 		//Decrement Alert cooldown
 		this.alert_cooldown = Math.max(this.alert_cooldown - 1, 0);
+		/*if (bc.me.turn >= 5 && this.friendly_castles.length == 1 && bc.me.unit == SPECS.CRUSADER){
+			bc.log("Didn't receive signal");
+		}*/
 		//Check if can sense enemy castle positions
 		for (let i = 0; i < this.enemy_castles.length; i++){
 			let rob = this.robomap[this.enemy_castles[i][1]][this.enemy_castles[i][0]];
@@ -319,15 +332,19 @@ class AbstractUnit{
 				//Not a castle or a friendly robot
 				if (robot.unit != SPECS.CASTLE || robot.team == bc.me.team){
 					//Not a valid enemy castle
-					bc.log("Castle was not a castle!!!");
+					bc.log(`Castle at (${this.enemy_castles[i][0]}, ${this.enemy_castles[i][1]}) was not a castle!!`);
 					this.enemy_castles.splice(i, 1);
 					removedCastle = true;
 					i--;
 					continue;
 				}
+				/*else{
+					bc.log(`Found Castle at (${this.enemy_castles[i][0]}, ${this.enemy_castles[i][1]})`);
+					bc.log(this.friendly_castles);
+				}*/
 			}
 			if (rob == 0){
-				bc.log("Castle was not found!!!");
+				bc.log(`Castle at (${this.enemy_castles[i][0]}, ${this.enemy_castles[i][1]}) not found`);
 				//Not a valid enemy castle
 				this.enemy_castles.splice(i, 1);
 				removedCastle = true;
@@ -348,6 +365,13 @@ class AbstractUnit{
 		}
 		//Only execute this on mobile units
 		if (bc.me.unit != SPECS.CASTLE && bc.me.unit != SPECS.CHURCH){
+			//Micro takes precedence
+			if (bc.me.unit != SPECS.PILGRIM){
+				//Micro takes precedence
+				if (shouldMicro){
+					return this.microMove(bc);
+				}
+			}
 			//Check for broadcast messages coming from friendly castles
 			for (let i = 0; i < this.visibleRobots.length; i++){
 				let robot = this.visibleRobots[i];
@@ -357,6 +381,7 @@ class AbstractUnit{
 					//bc.log(`Read signal ${signal}`);
 					if (signal == -1);
 					else if (signal < 4096){
+						//bc.log(`Noted: Friendly Castle at (${Math.floor(signal / 64)}, ${signal % 64})`)
 						//Multiply / Divide by 64 to store info
 						let newCastle = [Math.floor(signal / 64), signal % 64];
 						this.addFriendlyCastle(newCastle);
@@ -383,30 +408,34 @@ class AbstractUnit{
 			//bc.log(this.friendly_castles);
 			//For attacking units only
 			if (bc.me.unit != SPECS.PILGRIM){
+				/*if (bc.me.turn > 5 && this.enemy_castles.length == 1){
+					bc.log("!! Did not receive signal !!");
+				}*/
+				/*if (bc.me.unit == SPECS.CRUSADER){
+					bc.log(`There is ${bc.fuel}. I need ${constants.attackFuel}`)
+				}*/
 				//Triggers attack mode when there is enough fuel
+				//Used to spread out
+				if (bc.me.turn >= 3 && this.distSquared([bc.me.x, bc.me.y], [this.ownerCastle[0], this.ownerCastle[1]]) <= 4){
+					//Move to somewhere random on a 4 move radius
+					let tgt = this.spreadoutMove(bc, bc.me.x, bc.me.y);
+					//bc.log(`Spreading out to (${tgt[0]},${tgt[1]})`)
+					if (tgt != null){
+						return this.moveToTarget(bc, [tgt], constants.dirFuelSave, false);
+					}
+				}
 				if (bc.fuel >= constants.attackFuel){
 					//bc.log("Entering attack mode");
 					this.attack_mode = true;
 				}
 				//Begin assault, move towards nearest known castle
 				if (this.attack_mode){
-					if (shouldMicro){
-						return this.microMove(bc);
+					//bc.log("Targets: " + this.enemy_castles);
+					//Performs a move to target
+					let move = this.moveToTarget(bc, this.enemy_castles);
+					if (move){
+						return move;
 					}
-					else{
-						bc.log("Targets: " + this.enemy_castles);
-						//Performs a move to target
-						let move = this.moveToTarget(bc, this.enemy_castles);
-						if (move){
-							return move;
-						}
-					}
-				}
-				else{
-					if (shouldMicro){
-						return this.microMove(bc);
-					}
-					//Do nothing if should not micro
 				}
 			}
 		}
@@ -751,6 +780,57 @@ class AbstractUnit{
 		return rev;
 	}
 
+	spreadoutMove(bc, x, y, numSpread = constants.defaultSpread, dir = constants.dirFuelSave){
+		let map_height = this.map_height;
+		let map_width = this.map_width;
+		//Perform BFS to generate a move grid
+		let visited = [];
+		let moveGrid = [];
+		for (let i = 0; i < map_height; i++){
+			visited.push([]);
+			moveGrid.push([]);
+			for (let j = 0; j < map_width; j++){
+				visited[i].push(false);
+				moveGrid[i].push(-1);
+			}
+		}
+		moveGrid[y][x] = 0;
+		visited[y][x] = true;
+		let possibleLoc = [];
+		let queue = [[x, y]];
+		let robomap = this.robomap;
+		//Perform BFS on grid
+		while (queue.length > 0){
+			let pos = queue.splice(0, 1)[0];
+			//bc.log("Processing: " + pos);
+			for (let i = 0; i < dir.length; i++){
+				let newPos = [pos[0] + dir[i][0], pos[1] + dir[i][1]];
+				if (!this.isWithinMap(newPos[0], newPos[1]) || !bc.map[newPos[1]][newPos[0]] || visited[newPos[1]][newPos[0]]){
+					continue;
+				}
+				let rob = robomap[newPos[1]][newPos[0]];
+				let robot = (rob > 0) ? bc.getRobot(rob) : null;
+				//bc.log("Hi I'm here");
+				if (rob > 0 && robot != null){
+					continue;
+				}
+				moveGrid[newPos[1]][newPos[0]] = moveGrid[pos[1]][pos[0]] + 1;
+				if (moveGrid[newPos[1]][newPos[0]] == numSpread){
+					possibleLoc.push([newPos[0], newPos[1]]);
+				}
+				else if (moveGrid[newPos[1]][newPos[0]] > numSpread){
+					break;
+				}
+				visited[newPos[1]][newPos[0]] = true;
+				queue.push([newPos[0], newPos[1]]);
+			}
+		}
+		if (possibleLoc.length == 0){
+			return null;
+		}
+		return possibleLoc[Math.floor(this.seededRandom(0, possibleLoc.length))];
+	}
+
 	moveToTarget(bc, targets, dir = constants.dirFuelSave, passThruUnits = true){
 		if (this.actions.length == 0){
 			//Request more actions to perform
@@ -1010,15 +1090,27 @@ class Crusader extends AbstractUnit{
 		//Naive: Attack anything in range
 		let visibleRobots = bc.getVisibleRobots();
 		let enemyRobots = [];
+		let bestTarget = -1;
+		let bestScore = -1000000000;
 		for (let i = 0; i < visibleRobots.length; i++){
 			let robot = visibleRobots[i];
 			
 			if (robot.team != bc.me.team && this.canAttack(bc, robot)){
-				return bc.attack(robot.x - bc.me.x, robot.y - bc.me.y);
+				//bc.log(`Attackable robot with ID ${robot.id}`)
+				let score = this.getAttackScore(robot);
+				if (score > bestScore){
+					bestScore = score;
+					bestTarget = i;
+				}
+				//return bc.attack(robot.x - bc.me.x, robot.y - bc.me.y);
 			}
 			if (robot.team != bc.me.team){
 				enemyRobots.push(visibleRobots[i]);
 			}
+		}
+		if (bestTarget != -1){
+			let robot = visibleRobots[bestTarget];
+			return bc.attack(robot.x - bc.me.x, robot.y - bc.me.y);
 		}
 		let leastDist = 1000000000;
 		let bestMove = 0;
@@ -1041,7 +1133,10 @@ class Crusader extends AbstractUnit{
 			}
 		}
 		return bc.move(constants.dirReallyFast[bestMove][0], constants.dirReallyFast[bestMove][1]);
+	}
 
+	getAttackScore(other){
+		return other.id;
 	}
 
 
@@ -1185,14 +1280,28 @@ class Castle extends AbstractUnit{
 					//Spawn units here
 					let next_build_unit = this.getNextBuildUnit(num_units, this.friendly_castles.length);
 					//Switch harvest preference here
-					if (num_pilgrims % 4 == 3){
+					//First two pilgrims karbonite only
+					if (num_pilgrims <= 1){
+						this.resource_pref = 1; //karbonite only
+					}
+					else{
+						//Next two pilgrims anything
+						this.resource_pref = 0; //both
+					}
+					/*if (bc.fuel <= 250){
 						this.resource_pref = 2; //fuel only
 					}
 					else{
-						this.resource_pref = 1; //karbonite only
-					}
+						if (num_pilgrims % 3 == 2){
+							this.resource_pref = 2; //fuel only
+						}
+						else{
+							this.resource_pref = 1; //karbonite only
+						}
+					}*/
+					bc.log(`We has ${bc.karbonite} karbonite and ${bc.fuel} fuel. Next unit at castle ${next_build_unit[1]}`);
 					//Need to be robust, override requirement for specific castle if turn is > 15 and we have > 30 karbonite
-					if (next_build_unit[1] == this.castle_id || castleDestroyed){
+					if (next_build_unit[1] == this.castle_id || castleDestroyed || bc.karbonite > 60){
 						//Build the relevant unit, then signal
 						//Reserve 40 karbonite in case of attack
 						let action = this.buildUnit(bc, next_build_unit[0], constants.karboniteReserve);
@@ -1380,17 +1489,31 @@ class Pilgrim extends AbstractUnit{
 		this.ownerCastle = [0, 0]; //Should not be this value, should be defined as some other value
 		for (let i = 0; i < visibleRobots.length; i++){
 			let robot = visibleRobots[i];
-			bc.log(this.distSquared([bc.me.x, bc.me.y], [robot.x, robot.y]));
+			//bc.log(this.distSquared([bc.me.x, bc.me.y], [robot.x, robot.y]));
 			if ((robot.unit == SPECS.CASTLE || robot.unit == SPECS.CHURCH) && robot.team == bc.me.team && this.distSquared([bc.me.x, bc.me.y], [robot.x, robot.y]) <= 2){
 				this.ownerCastle = [robot.x, robot.y];
 				bc.log(`Owner castle is at (${robot.x},${robot.y})`);
 				//bc.log(`Owner castle says ${robot.signal}`);
 				this.targetIdx = robot.signal - 4096;
 				bc.log(`Target index is ${robot.signal - 4096}`);
+				bc.log(`Attempt mine at ${this.allTargets[this.targetIdx]}`);
 				this.targets = [this.allTargets[this.targetIdx]];
 				break;
 			}
 		}
+		this.homeTiles = [];
+		for (let i = 0; i < constants.dirFuelSave.length; i++){
+			let dir = constants.dirFuelSave[i];
+			let nx = this.ownerCastle[0] + dir[0];
+			let ny = this.ownerCastle[1] + dir[1];
+			//bc.log(nx);
+			//bc.log(ny);
+			if (this.isWithinMap(nx, ny)){
+				this.homeTiles.push([nx, ny]);
+			}
+		}
+		//bc.log("Home tiles");
+		//bc.log(this.homeTiles);
 		//this.centroids = super.kMeansMulti(bc, constants.numkMeansIter, constants.num_workers);
 	}
 
@@ -1398,8 +1521,8 @@ class Pilgrim extends AbstractUnit{
 		//Would not make a move off of super's take turn
 		super.takeTurn(bc);
 		//Broadcast a castle message detailing I'm a pilgrim and my target index
+		bc.castleTalk(64 + this.targetIdx);
 		//bc.log(this.targets);
-		//bc.castleTalk(64 + this.targetIdx);
 		//bc.log(bc.karbonite_map[bc.me.y][bc.me.x]);
 		/*if (this.shouldMicro(bc)){
 			this.microMove(bc);
@@ -1413,7 +1536,9 @@ class Pilgrim extends AbstractUnit{
 				return bc.give(this.ownerCastle[0] - bc.me.x, this.ownerCastle[1] - bc.me.y, bc.me.karbonite, bc.me.fuel);
 			}
 			//I'm full, todo: return to base
-			return this.moveToTarget(bc, [this.ownerCastle], constants.dirFast, false);
+			let action = this.moveToTarget(bc, this.homeTiles, constants.dirFast, false);
+			bc.log(this.actions);
+			return action;
 		}
 		else{
 			//If I'm already on a karbonite deposit, mine it

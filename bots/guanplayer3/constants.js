@@ -15,4 +15,5 @@ export const constants = {
 	alertUnitType: SPECS.CRUSADER, //Unit type to be produced on alert
 	karboniteReserve: 40, //Amt of karbonite reserved for alerts
 	defaultSpread: 3, //Default amt to spread out by
+	rushTurn: 30, //Turn at which to force attack
 };
