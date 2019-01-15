@@ -26,7 +26,6 @@ Impt
 - Update micro code to be more powerful
 - Group army units into a single bunch, signal to find all castle positions
 
-!! - Alert system => Alert nearby army units of enemies so can fight in a group
 !! - Engagement => Never move into range of enemy, let enemy move into range of you
 !! - Delay => Triggers for moving out
 !! - Macro => Need to build only combat units when on alert, communicate alert status etc
