@@ -26,6 +26,9 @@ export class AbstractUnit{
 		this.attack_mode = false; //Is in attack mode?
 		//bc.log("Enemy castles predicted at: " + this.enemy_castles);
 		this.actions = []; //No actions to take
+		this.alert_cooldown = 0; //Used to determine if this unit can/will broadcast an alert
+		this.should_micro = false; //Used to determine whether this unit should micro
+		this.spotted_enemy = null; //Location of enemy spotted
 		//this.bc = battleCode;
 	}
 
@@ -34,6 +37,10 @@ export class AbstractUnit{
 		this.robomap = bc.getVisibleRobotMap(); //Generate robot map once
 		this.visibleRobots = bc.getVisibleRobots(); //Get visible robots
 		let removedCastle = false;
+		let shouldMicro = this.shouldMicro(bc);
+		this.should_micro = shouldMicro;
+		//Decrement Alert cooldown
+		this.alert_cooldown = Math.max(this.alert_cooldown - 1, 0);
 		//Check if can sense enemy castle positions
 		for (let i = 0; i < this.enemy_castles.length; i++){
 			let rob = this.robomap[this.enemy_castles[i][1]][this.enemy_castles[i][0]];
@@ -61,7 +68,14 @@ export class AbstractUnit{
 		if (removedCastle){
 			this.actions = this.makeMoveQueue(bc, bc.me.x, bc.me.y, this.enemy_castles);
 		}
-
+		//Issue alert if enemy nearby
+		if (this.alert_cooldown <= 0){
+			if (shouldMicro && this.spotted_enemy != null){
+				bc.log(`Alerting enemy at (${this.spotted_enemy[0]},${this.spotted_enemy[1]})`)
+				this.signalAlert(bc, 8192 + this.spotted_enemy[0] * 64 + this.spotted_enemy[1]);
+				this.alert_cooldown = constants.alertCooldown;
+			}
+		}
 		//Only execute this on mobile units
 		if (bc.me.unit != SPECS.CASTLE && bc.me.unit != SPECS.CHURCH){
 			//Check for broadcast messages coming from friendly castles
@@ -81,55 +95,51 @@ export class AbstractUnit{
 						this.enemy_castles = this.getEnemyCastles(bc, this.friendly_castles);
 					}
 				}
+				//Check for alert messages
+				else if (robot.team == bc.me.team){
+					let signal = robot.signal;
+					if (signal >= 8192 && signal < 12288){
+						//Propagate signal to other units
+						this.signalAlert(bc, signal);
+						//Attack signal
+						signal -= 8192;
+						//Move to location of disturbance
+						bc.log(`Received Alert at (${Math.floor(signal / 64)},${signal % 64})`)
+						if (bc.me.unit != SPECS.PILGRIM){
+							return this.moveToTarget(bc, [[Math.floor(signal / 64), signal % 64]])
+						}
+					}
+				}
 			}
+
 			//bc.log(this.friendly_castles);
-			//Triggers attack mode when there is enough fuel
-			if (bc.fuel >= constants.attackFuel){
-				//bc.log("Entering attack mode");
-				this.attack_mode = true;
-			}
-			//Begin assault, move towards nearest known castle
-			if (this.attack_mode){
-				if (this.shouldMicro(bc)){
-					return this.microMove(bc);
+			//For attacking units only
+			if (bc.me.unit != SPECS.PILGRIM){
+				//Triggers attack mode when there is enough fuel
+				if (bc.fuel >= constants.attackFuel){
+					//bc.log("Entering attack mode");
+					this.attack_mode = true;
+				}
+				//Begin assault, move towards nearest known castle
+				if (this.attack_mode){
+					if (shouldMicro){
+						return this.microMove(bc);
+					}
+					else{
+						bc.log("Targets: " + this.enemy_castles);
+						//Performs a move to target
+						let move = this.moveToTarget(bc, this.enemy_castles);
+						if (move){
+							return move;
+						}
+					}
 				}
 				else{
-					bc.log("Targets: " + this.enemy_castles);
-					//Checks if there is some move in the move queue
-					if (this.actions.length == 0){
-						//Request more actions to perform
-						this.actions = this.makeMoveQueue(bc, bc.me.x, bc.me.y, this.enemy_castles);
+					if (shouldMicro){
+						return this.microMove(bc);
 					}
-					if (this.actions.length != 0){
-						let action = this.actions.splice(0, 1)[0];
-						//Check if move is valid, if not request additional moves
-						let newPos = [bc.me.x + action[0], bc.me.y + action[1]];
-						//Then check if move is valid. If still incorrect, perform no action
-						if (!this.isOccupied(bc, newPos[0], newPos[1])){
-							return bc.move(action[0], action[1]);
-						}
-						else{
-							//Move is invalid, recompute
-							this.actions = this.makeMoveQueue(bc, bc.me.x, bc.me.y, this.enemy_castles);
-							if (this.actions.length != 0){
-								action = this.actions.splice(0, 1)[0];
-								newPos = [bc.me.x + action[0], bc.me.y + action[1]];
-								if (!this.isOccupied(bc, newPos[0], newPos[1])){
-									return bc.move(action[0], action[1]);
-								}
-							}
-							//Give up if unable to move
-							bc.log("Gave up moving");
-						}
-					}
-					bc.log("No valid move");
+					//Do nothing if should not micro
 				}
-			}
-			else{
-				if (this.shouldMicro(bc)){
-					return this.microMove(bc);
-				}
-				//Do nothing if should not micro
 			}
 		}
 	}
@@ -367,9 +377,10 @@ export class AbstractUnit{
 		@param y the origin y position
 		@param targets An array of [x,y] which represent all the targets to move to
 		@param dir the available directions that this robot can move in
+		@param returnNearestTarget returns [[targetX, targetY], dist] instead of an array of directions to take
 		@return null if unreachable, array containing moves [dirx, diry] if reachable
 	*/
-	makeMoveQueue(bc, x, y, targets, dir = constants.dirFuelSave){
+	makeMoveQueue(bc, x, y, targets, dir = constants.dirFuelSave, passThruUnits = true, returnNearestTarget = false){
 		if (targets.length == 0){
 			return [];
 		}
@@ -414,8 +425,16 @@ export class AbstractUnit{
 				let robot = (rob > 0) ? bc.getRobot(rob) : null;
 				//bc.log("Hi I'm here");
 				//Can't move past castles or churches
-				if (rob > 0 && robot != null && (robot.unit == SPECS.CASTLE || robot.unit == SPECS.CHURCH)){
-					continue;
+				if (passThruUnits){
+					if (rob > 0 && robot != null && (robot.unit == SPECS.CASTLE || robot.unit == SPECS.CHURCH)){
+						continue;
+					}
+				}
+				else{
+					//Can't move past any type of units
+					if (rob > 0 && robot != null){
+						continue;
+					}
 				}
 				moveGrid[newPos[1]][newPos[0]] = moveGrid[pos[1]][pos[0]] + 1;
 				lastMoveGrid[newPos[1]][newPos[0]] = dir[i];
@@ -424,11 +443,16 @@ export class AbstractUnit{
 				if (isTarget[newPos[1]][newPos[0]]){
 					targetX = newPos[0];
 					targetY = newPos[1];
-					bc.log("Done. Exiting BFS");
+					//bc.log("Done. Exiting BFS");
 					queue = [];
 					//bc.log("targetX: " + targetX + "targetY: " + targetY);
 					break;
 				}
+			}
+		}
+		if (returnNearestTarget){
+			if (targetX != -1 && targetY != -1){
+				return [[targetX, targetY], moveGrid[targetY][targetX]];
 			}
 		}
 		//Debug step
@@ -457,6 +481,91 @@ export class AbstractUnit{
 			rev.push(actions[i]);
 		}
 		return rev;
+	}
+
+	moveToTarget(bc, targets, dir = constants.dirFuelSave, passThruUnits = true){
+		if (this.actions.length == 0){
+			//Request more actions to perform
+			this.actions = this.makeMoveQueue(bc, bc.me.x, bc.me.y, targets, dir, passThruUnits);
+		}
+		if (this.actions.length != 0){
+			let action = this.actions.splice(0, 1)[0];
+			//Check if move is valid, if not request additional moves
+			let newPos = [bc.me.x + action[0], bc.me.y + action[1]];
+			//Then check if move is valid. If still incorrect, perform no action
+			if (!this.isOccupied(bc, newPos[0], newPos[1])){
+				return bc.move(action[0], action[1]);
+			}
+			else{
+				//Move is invalid, recompute
+				this.actions = this.makeMoveQueue(bc, bc.me.x, bc.me.y, targets, dir, passThruUnits);
+				if (this.actions.length != 0){
+					action = this.actions.splice(0, 1)[0];
+					newPos = [bc.me.x + action[0], bc.me.y + action[1]];
+					if (!this.isOccupied(bc, newPos[0], newPos[1])){
+						return bc.move(action[0], action[1]);
+					}
+				}
+				//Give up if unable to move
+				bc.log("Gave up moving");
+			}
+		}
+		bc.log("No valid move");
+	}
+
+	signalAlert(bc, signal){
+		/*
+			Guide to signals:
+			< 4096 => Allied castle location signal (x * 64 + y)
+			4096 - 8191 => signal - 4096 is the location on resource array to gather at
+			8192 - 12288 => Alert signal, signal - 8192 is the location on map where an attack is reported
+		*/
+		//TODO: Get nearby alerting units
+		//TODO: Check if all non alerting units are covered by alerting units (maxRadius)
+		//TODO: If some non alerting unit is not covered, signal the alert
+		let alertUnits = [];
+		for (let i = 0; i < this.visibleRobots.length; i++){
+			let robot = this.visibleRobots[i];
+			let signal = robot.signal;
+			if (signal >= 8192 && signal < 12288){
+				alertUnits.push([robot.x, robot.y]);
+			}
+		}
+		let unalertedUnits = [];
+		for (let i = 0; i < this.visibleRobots.length; i++){
+			let robot = this.visibleRobots[i];
+			if (robot.x == null || robot.team != bc.me.team){
+				continue;
+			}
+			if (robot.unit == SPECS.CASTLE || robot.unit == SPECS.PILGRIM || robot.unit == SPECS.CHURCH){
+				continue;
+			}
+			//bc.log("Check covering");
+			//bc.log(alertUnits.length);
+			let isCovered = false;
+			for (let j = 0; j < alertUnits.length; j++){
+				let alertRobot = alertUnits[j];
+				//bc.log("Dist: " + this.distSquared([robot.x, robot.y], [alertRobot[0], alertRobot[1]]));
+				if (this.distSquared([robot.x, robot.y], [alertRobot[0], alertRobot[1]]) <= constants.maxAlertRadius){
+					isCovered = true;
+					break;
+				}
+			}
+			if (!isCovered){
+				unalertedUnits.push([robot.x, robot.y]);
+			}
+		}
+		let radius = 0;
+		for (let i = 0; i < unalertedUnits.length; i++){
+			let unit = unalertedUnits[i];
+			let distSquared = this.distSquared([bc.me.x, bc.me.y], [unit[0], unit[1]]);
+			radius = Math.max(radius, Math.min(distSquared, constants.maxAlertRadius));
+		}
+		if (radius == 0){
+			return;
+		}
+		bc.signal(signal, radius);
+		bc.log(`Signalling Alert ${signal} at radius ${radius}`)
 	}
 
 	/**
@@ -545,6 +654,7 @@ export class AbstractUnit{
 			}
 			if (other.team != bc.me.team && distSquared <= constants.microRadius){
 				//bc.log("Nearest Enemy is too close");
+				this.spotted_enemy = [other.x, other.y];
 				return true;
 			}
 		}

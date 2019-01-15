@@ -18,8 +18,27 @@ Improvements
 - Assign scouting targets if no targets
 
 Impt
-- Fix bug with blue micro
-- Test single base vs split base
+- Update clustering to use castles as centroids and assign as such
 - Get workers working
+- Use non clustering approach (Greedy with signalling)
+- Test single base vs split base, workers vs no workers, clustering vs no clustering (Use nearest cluster first)
+- Preachers
 - Update micro code to be more powerful
 - Group army units into a single bunch, signal to find all castle positions
+
+!! - Alert system => Alert nearby army units of enemies so can fight in a group
+!! - Engagement => Never move into range of enemy, let enemy move into range of you
+!! - Delay => Triggers for moving out
+!! - Macro => Need to build only combat units when on alert, communicate alert status etc
+!! - Micro => Improve micro on crusader, implement micro on pilgrim, try out new unit types, new unit comps
+(Pick on lowest health unit, stay out of enemy attack range)
+!! - Maps => Try out new random seeds
+!! - Macro => When to build pilgrims, how many pilgrims, churches (and their value)
+!! - Expand out units when all the spaces are filled up
+!! - Castle Update => Update castle numbers accordingly when some castles die
+
+
+- Build churches at centroids when appropriate
+- Come up with a good build order and resource mine order
+- Adjust number of pilgrims built
+- Try other combat units
