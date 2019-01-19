@@ -1,1 +1,1 @@
-bc19run -s 32342342 -b bots/guanplayer3 -r bots/guanplayer3_test --chi 1000 --debug --replay replay.bc19
+bc19run -s 32342342 -b bots/guanplayer4 -r bots/guanplayer4_test --chi 1000 --debug --replay replay.bc19

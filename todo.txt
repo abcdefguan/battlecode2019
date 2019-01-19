@@ -37,6 +37,21 @@ Impt
 !! - Expand out units when all the spaces are filled up
 !! - Castle Update => Update castle numbers accordingly when some castles die
 
+Impt
+
+Swarm Units instead of one by one => Be defensive until critical mass is attained then attack
+=> Use another approach to alert units and to attack (attain critical mass)
+=> Get units to spread out in direction facing enemy
+=> Macro more (Test various extents of macro)
+=> Build churches
+Harvest karbonite / fuel dynamically => Harvest whichever we need the most right now (Signalling issue)
+Move bit => Knight Rush => Need a counter
+Need to review those games => doesn’t look natural
+Balance Changes
+Church Placement and clustering
+Prophet Surround / Mass Micro Strats
+Doing better broadcasts
+
 
 - Build churches at centroids when appropriate
 - Come up with a good build order and resource mine order
