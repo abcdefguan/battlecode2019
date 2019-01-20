@@ -37,6 +37,25 @@ Impt
 !! - Expand out units when all the spaces are filled up
 !! - Castle Update => Update castle numbers accordingly when some castles die
 
+Critical
+Check pilgrim numbers => Could be bug
+Send units to guard churches when they are being built ??
+Units should go back after microing if they're not in attack mode
+Fix issue with moving out
+Build churches
+=> Count live churches, determine where to build church
+=> Have a new pilgrim mode that is to build a church
+This pilgrim must wait 3 turns to get its build church order (based on Idx) and the other castle locs and communicate them to the church
+Need to read live churches based on number of turns left alive and have a live countdown
+?? Castles mine their own resources, church mine their resources ??
+Mine resources based on need??
+Tune parameters to macro harder (Instead of storing resources, go all workers then store resources later??)
+Snipe enemy resources / churches
+Church Defense
+Use double speed when engaging (Attack mode)
+Fix micro bug with prophets vs knights, investigate using knights
+Crescent Moon formation => Deterministic Algo to choose assembly location, then build formation based on ID
+
 Impt
 
 Swarm Units instead of one by one => Be defensive until critical mass is attained then attack
@@ -51,6 +70,7 @@ Balance Changes
 Church Placement and clustering
 Prophet Surround / Mass Micro Strats
 Doing better broadcasts
+Improve micro
 
 
 - Build churches at centroids when appropriate

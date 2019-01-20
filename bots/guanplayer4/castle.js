@@ -16,7 +16,7 @@ export class Castle extends AbstractUnit{
 		this.castle_id = -1; //Castle 1 => 1st castle, 2 => 2nd castle, 3 => 3rd castle
 		this.other_castles = {}; //Represents locations of other castles
 		this.signal_queue = []; //Queue to be used to signal units
-		this.resource_pref = 1; //0 => both deposits, 1 => karbonite, 2 => fuel (Set this before building pilgrims)
+		this.resource_pref = 1; //0 => both deposits, 1 => karbonite, 2 => fuel (Set this before building pilgrims), 3 => build church
 		this.friendly_robots = {};
 		this.allTargets = this.getDeposits(bc, 0); //A reference to every deposit
 	}
@@ -25,7 +25,8 @@ export class Castle extends AbstractUnit{
 		/*
 			Guide to castle talk:
 			0 - 64 => target x or y location (within first 5 turns)
-			254 => Under attack
+			253 => Normal Church
+			254 => Under attack (Castle Only)
 			255 => normal operation
 		*/
 		super.takeTurn(bc); //Perform any behaviour shared by all units before taking turn
@@ -87,6 +88,8 @@ export class Castle extends AbstractUnit{
 			}
 			//Compute locations of enemy castles
 			this.enemy_castles = this.getEnemyCastles(bc, this.friendly_castles);
+			//Don't care about assignments, churches should be sorted by score
+			this.churchPos = this.getChurchPositions(bc, this.friendly_castles, this.enemy_castles)[0];
 			bc.log("Enemy castles predicted at: " + this.enemy_castles);
 			canSignal = true;
 		}
@@ -144,12 +147,17 @@ export class Castle extends AbstractUnit{
 					let next_build_unit = this.getNextBuildUnit(num_units, this.friendly_castles.length);
 					//Switch harvest preference here
 					//First two pilgrims karbonite only
-					if (num_pilgrims <= 1){
-						this.resource_pref = 1; //karbonite only
+					if (bc.me.turn <= constants.churchBuildTurn){
+						if (num_pilgrims <= 1){
+							this.resource_pref = 1; //karbonite only
+						}
+						else{
+							//Next two pilgrims anything
+							this.resource_pref = 0; //both
+						}
 					}
 					else{
-						//Next two pilgrims anything
-						this.resource_pref = 0; //both
+						this.resource_pref = 3;
 					}
 					/*if (bc.fuel <= 250){
 						this.resource_pref = 2; //fuel only
@@ -164,10 +172,10 @@ export class Castle extends AbstractUnit{
 					}*/
 					bc.log(`We has ${bc.karbonite} karbonite and ${bc.fuel} fuel. Next unit at castle ${next_build_unit[1]}`);
 					//Need to be robust, override requirement for specific castle if turn is > 15 and we have > 30 karbonite
-					if (next_build_unit[1] == this.castle_id || castleDestroyed || (bc.karbonite > 60 && bc.fuel > 750)){
+					if (next_build_unit[1] == this.castle_id || (next_build_unit[0] == SPECS.PILGRIM && bc.me.turn <= constants.churchBuildTurn) || castleDestroyed || (bc.karbonite > 60 && bc.fuel > 750)){
 						//Build the relevant unit, then signal
 						//Reserve 40 karbonite in case of attack
-						let action = this.buildUnit(bc, next_build_unit[0], constants.karboniteReserve);
+						let action = this.buildUnit(bc, next_build_unit[0], constants.karboniteReserve, constants.noRobotFuel);
 						if (canSignal && this.signal_queue.length > 0){
 							let signal = this.signal_queue.splice(0, 1)[0];
 							this.signalAllies(bc, signal);
@@ -232,32 +240,67 @@ export class Castle extends AbstractUnit{
 			let ny = bc.me.y + dir[i][1];
 			if (unitType == SPECS.PILGRIM){
 				if (!this.isOccupied(bc, nx, ny)){
-					//TODO: Compute mining target
-					let targetIdx = -1;
-					let allTargets = this.allTargets;
-					let legitTargets = this.getUnminedDeposits(bc, this.resource_pref);
-					//Can't build unit, no remaining targets left
-					if (legitTargets.length == 0){
-						bc.log("All mining targets are taken");
-						return;
-					}
-					let target = this.makeMoveQueue(bc, bc.me.x, bc.me.y, legitTargets, constants.dirFuelSave, false, true)[0];
-					//bc.log(`Target: ${target}`);
-					//bc.log(`Legit Targets: ${legitTargets}`);
-					for (let j = 0; j < allTargets.length; j++){
-						if (allTargets[j][0] == target[0] && allTargets[j][1] == target[1]){
-							targetIdx = j;
-							break;
+					if (this.resource_pref == 3){
+						//An order to build a church
+						//Listen to all churches
+						let churches = this.getChurches();
+						for (let j = 0; j < this.churchPos.length; j++){
+							if (!churches.hasOwnProperty(j)){
+								//Am I the closest castle to this church
+								let closestCastle = -1;
+								let leastDist = 1000000000;
+								for (let aa = 0; aa < this.friendly_castles.length; aa++){
+									let castle = this.friendly_castles[aa];
+									let distSquared = this.distSquared(this.churchPos[j], castle);
+									if (distSquared <= leastDist){
+										leastDist = distSquared;
+										closestCastle = aa;
+									}
+								}
+								//Self must be the closest castle in order to build
+								if (closestCastle != 0){
+									bc.log("not closest castle, closest castle is " + closestCastle);
+									return;
+								}
+								//Build church with ID j
+								for (let j = 1; j < this.friendly_castles.length; j++){
+									let castle = this.friendly_castles[j];
+									this.signal_queue.unshift(castle[0] * 64 + castle[1]);
+								}
+								this.signal_queue.unshift(12288 + j);
+								return bc.buildUnit(unitType, dir[i][0], dir[i][1]);
+							}
 						}
 					}
-					if (targetIdx == -1){
-						bc.log("Could not reach any mining targets");
-						return;
+					else{
+						//An order to mine a certain resource tile
+						//TODO: Compute mining target
+						let targetIdx = -1;
+						let allTargets = this.allTargets;
+						let legitTargets = this.getUnminedDeposits(bc, this.resource_pref);
+						//Can't build unit, no remaining targets left
+						if (legitTargets.length == 0){
+							bc.log("All mining targets are taken");
+							return;
+						}
+						let target = this.makeMoveQueue(bc, bc.me.x, bc.me.y, legitTargets, constants.dirFuelSave, false, true)[0];
+						//bc.log(`Target: ${target}`);
+						//bc.log(`Legit Targets: ${legitTargets}`);
+						for (let j = 0; j < allTargets.length; j++){
+							if (allTargets[j][0] == target[0] && allTargets[j][1] == target[1]){
+								targetIdx = j;
+								break;
+							}
+						}
+						if (targetIdx == -1){
+							bc.log("Could not reach any mining targets");
+							return;
+						}
+						//bc.log(`Signalling index ${targetIdx} to pilgrim`);
+						this.signal_queue.unshift(4096 + targetIdx);
+						//bc.log(this.signal_queue);
+						return bc.buildUnit(unitType, dir[i][0], dir[i][1]);
 					}
-					bc.log(`Signalling index ${targetIdx} to pilgrim`);
-					this.signal_queue.unshift(4096 + targetIdx);
-					bc.log(this.signal_queue);
-					return bc.buildUnit(unitType, dir[i][0], dir[i][1]);
 				}
 			}
 			else{
@@ -291,6 +334,7 @@ export class Castle extends AbstractUnit{
 			< 4096 => Allied castle location signal (x * 64 + y)
 			4096 - 8191 => signal - 4096 is the location on resource array to gather at
 			8192 - 12288 => Alert signal, signal - 8192 is the location on map where an attack is reported
+			12288 - 16383 => Used to convey church index to new churches, also used to convey build church order to pilgrims
 		*/
 		let radius = 1;
 		if (signal < 4096){
@@ -341,6 +385,18 @@ export class Castle extends AbstractUnit{
 			}
 		}
 		return unminedDeposits;
+	}
+
+	getChurches(){
+		//Returns a church object with church IDs
+		let churches = {};
+		for (let i = 0; i < this.visibleRobots.length; i++){
+			let robot = this.visibleRobots[i];
+			if (robot.castle_talk > 220 && robot.castle_talk <= 253){
+				churches[253 - robot.castle_talk] = 1;
+			}
+		}
+		return churches;
 	}
 
 
