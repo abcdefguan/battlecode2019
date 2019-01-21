@@ -24,6 +24,9 @@ export class Pilgrim extends AbstractUnit{
 			//bc.log(this.distSquared([bc.me.x, bc.me.y], [robot.x, robot.y]));
 			if ((robot.unit == SPECS.CASTLE || robot.unit == SPECS.CHURCH) && robot.team == bc.me.team && this.distSquared([bc.me.x, bc.me.y], [robot.x, robot.y]) <= 2){
 				this.ownerCastle = [robot.x, robot.y];
+				if (robot.unit == SPECS.CASTLE){
+					this.addFriendlyCastle(this.ownerCastle);
+				}
 				bc.log(`Owner castle is at (${robot.x},${robot.y})`);
 				if (robot.signal >= 4096 && robot.signal < 8192){
 					this.targetIdx = robot.signal - 4096;
@@ -59,11 +62,13 @@ export class Pilgrim extends AbstractUnit{
 	takeTurn(bc){
 		//Would not make a move off of super's take turn
 		super.takeTurn(bc);
-		bc.castleTalk(253 - this.churchId);
+		
 		//bc.log(this.targets);
 		//bc.log(bc.karbonite_map[bc.me.y][bc.me.x]);
 		if (this.shouldBuildChurch){
-			bc.log(`I'm building church yay`);
+			//bc.log(`I'm building church at ID ${this.churchId}`);
+
+			bc.castleTalk(253 - this.churchId);
 			//TODO: Build church at appropriate position
 			//Wait while friendly and enemy castles are updated by abstract unit
 			if (bc.me.turn == 4){
@@ -83,6 +88,7 @@ export class Pilgrim extends AbstractUnit{
 				}
 			}
 			if (bc.me.turn >= 4){
+				bc.log("Friendly Castles: " + this.friendly_castles)
 				//TODO: If I'm adjacent to the church, build it, then convert me to a mining pilgrim
 				if (this.distSquared(this.churchPos, [bc.me.x, bc.me.y]) <= 2){
 					if (!this.hasBuiltChurch && this.hasEnoughResources(bc, SPECS.CHURCH) && !this.isOccupied(bc, this.churchPos[0], this.churchPos[1])){
@@ -101,31 +107,7 @@ export class Pilgrim extends AbstractUnit{
 							if (bc.me.turn - this.builtChurchTurn == this.friendly_castles.length){
 								this.shouldBuildChurch = false;
 								//Get resource tiles church is in charge of
-								let churchTargets = [];
-								for (let i = 0; i < this.allTargets.length; i++){
-									let deposit = this.allTargets[i];
-									if (this.distSquared(deposit, this.churchPos) <= constants.clusterRadius){
-										churchTargets.push([i, this.allTargets[i]]);
-									}
-								}
-								//Sort resource tiles by karbonite first, fuel second
-								churchTargets.sort((target1, target2) => {
-									let targetType1 = 1;
-									if (bc.karbonite_map[target1[1][1]][target1[1][0]]){
-										targetType1 = 0;
-									}
-									let targetType2 = 1;
-									if (bc.karbonite_map[target2[1][1]][target2[1][0]]){
-										targetType2 = 0;
-									}
-									if (targetType1 != targetType2){
-										return targetType1 - targetType2;
-									}
-									else{
-										//Compare by ID
-										return target1[0] - target2[0];
-									}
-								})
+								let churchTargets = this.getOwnedDeposits(bc, this.allTargets);
 								this.ownerCastle = this.churchPos;
 								this.targets = [this.allTargets[churchTargets[0][0]]];
 								this.targetIdx = churchTargets[0][0];
@@ -159,7 +141,8 @@ export class Pilgrim extends AbstractUnit{
 		}
 		else{
 			//Broadcast a castle message detailing I'm a pilgrim and my target index
-			bc.castleTalk(64 + this.targetIdx);
+			//bc.log(`My target index is ${this.targetIdx}`)
+			bc.castleTalk(65 + this.targetIdx);
 			if (bc.me.karbonite >= SPECS.UNITS[bc.me.unit].KARBONITE_CAPACITY || bc.me.fuel >= SPECS.UNITS[bc.me.unit].FUEL_CAPACITY){
 				//bc.log("Full of karbonite!!");
 				//bc.log(this.ownerCastle);

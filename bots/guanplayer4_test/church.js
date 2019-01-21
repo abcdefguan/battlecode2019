@@ -25,7 +25,33 @@ export class Church extends AbstractUnit{
 				this.churchIdx = robot.signal - 12288; //Signal with 12288 added to it
 			}
 		}
-		this.myTargets = this.getOwnedDeposits(bc, this.allTargets);
+		this.myTargets = []; //[[idx, pos]]
+		//Get resource tiles that this church is in charge of
+		for (let i = 0; i < this.allTargets.length; i++){
+			let deposit = this.allTargets[i];
+			if (this.distSquared(deposit, [bc.me.x, bc.me.y]) <= constants.clusterRadius){
+				//Build 
+				this.myTargets.push([i, this.allTargets[i]]);
+			}
+		}
+		//Sort resource tiles by karbonite first, fuel second
+		this.myTargets.sort((target1, target2) => {
+			let targetType1 = 1;
+			if (bc.karbonite_map[target1[1][1]][target1[1][0]]){
+				targetType1 = 0;
+			}
+			let targetType2 = 1;
+			if (bc.karbonite_map[target2[1][1]][target2[1][0]]){
+				targetType2 = 0;
+			}
+			if (targetType1 != targetType2){
+				return targetType1 - targetType2;
+			}
+			else{
+				//Compare by ID
+				return target1[0] - target2[0];
+			}
+		})
 		//bc.log("On Init Targets");
 		//bc.log(this.myTargets)
 		this.myPilgrims = {}; //Maps each robot ID to its target resource tile
@@ -73,7 +99,6 @@ export class Church extends AbstractUnit{
 		//bc.log(this.friendly_castles)
 		this.myPilgrims = newPilgrims;
 		//Castle talk to indicate church and status
-		bc.log(`My index is ${this.churchIdx}`)
 		bc.castleTalk(253 - this.churchIdx);
 		if (this.should_micro){
 			//I'm currently on alert, should build units

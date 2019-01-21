@@ -157,6 +157,7 @@ export class AbstractUnit{
 				if (bc.me.turn >= 3 && this.distSquared([bc.me.x, bc.me.y], [this.ownerCastle[0], this.ownerCastle[1]]) <= 4){
 					//Move to somewhere random on a 4 move radius
 					let tgt = this.spreadoutMove(bc, bc.me.x, bc.me.y);
+					this.settlePos = tgt;
 					//bc.log(`Spreading out to (${tgt[0]},${tgt[1]})`)
 					if (tgt != null){
 						return this.moveToTarget(bc, [tgt], constants.dirFuelSave, false);
@@ -181,6 +182,15 @@ export class AbstractUnit{
 					if (move){
 						return move;
 					}
+				}
+				else{
+					/*if (this.settlePos){
+						bc.log("Settle Pos: " + this.settlePos);
+					}*/
+					/*if (this.settlePos && this.distSquared(this.settlePos, [bc.me.x, bc.me.y]) > 1){
+						//bc.log("Returning to settle pos");
+						return this.moveToTarget(bc, [this.settlePos], constants.dirFuelSave, false);
+					}*/
 				}
 			}
 		}
@@ -486,6 +496,37 @@ export class AbstractUnit{
 			}
 		}
 		return targets;
+	}
+
+	getOwnedDeposits(bc, allDeposits){
+		let myDeposits = []; //[[idx, pos]]
+		//Get resource tiles that this church is in charge of
+		for (let i = 0; i < allDeposits.length; i++){
+			let deposit = allDeposits[i];
+			if (this.distSquared(deposit, [bc.me.x, bc.me.y]) <= constants.clusterRadius){
+				//Build 
+				myDeposits.push([i, allDeposits[i]]);
+			}
+		}
+		//Sort resource tiles by karbonite first, fuel second
+		myDeposits.sort((target1, target2) => {
+			let targetType1 = 1;
+			if (bc.karbonite_map[target1[1][1]][target1[1][0]]){
+				targetType1 = 0;
+			}
+			let targetType2 = 1;
+			if (bc.karbonite_map[target2[1][1]][target2[1][0]]){
+				targetType2 = 0;
+			}
+			if (targetType1 != targetType2){
+				return targetType1 - targetType2;
+			}
+			else{
+				//Compare by ID
+				return target1[0] - target2[0];
+			}
+		})
+		return myDeposits;
 	}
 
 	/**

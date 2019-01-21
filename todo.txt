@@ -39,15 +39,17 @@ Impt
 
 Critical
 Check pilgrim numbers => Could be bug
-Send units to guard churches when they are being built ??
-Units should go back after microing if they're not in attack mode
-Fix issue with moving out
-Build churches
-=> Count live churches, determine where to build church
-=> Have a new pilgrim mode that is to build a church
-This pilgrim must wait 3 turns to get its build church order (based on Idx) and the other castle locs and communicate them to the church
-Need to read live churches based on number of turns left alive and have a live countdown
-?? Castles mine their own resources, church mine their resources ??
+
+Next Task
+=> Improve castle macro, build like they're churches (always build pilgrim first and fill up pilgrim slots), build churches earlier
+=> Debug church building, same churches being built, same resources being mined (Why??)
+=> Pilgrims killed => Spawn combat units, treat as alert
+=> Don't replenish pilgrims mining in dangerous positions, remove deposits that are close to enemy castles
+=> Move units up to defend church locations
+Get units to church locations in early game
+Send units to guard churches when they are being built !!
+Gradiented score based on distance away from enemy units
+Test crusaders based on
 Mine resources based on need??
 Tune parameters to macro harder (Instead of storing resources, go all workers then store resources later??)
 Snipe enemy resources / churches
@@ -55,6 +57,11 @@ Church Defense
 Use double speed when engaging (Attack mode)
 Fix micro bug with prophets vs knights, investigate using knights
 Crescent Moon formation => Deterministic Algo to choose assembly location, then build formation based on ID
+
+Tune macro parameters
+=> Turn at which church is being built (Early church rush??)
+=> Ratio of workers built to fighting units built
+=> Sniping enemy resources / churches
 
 Impt
 

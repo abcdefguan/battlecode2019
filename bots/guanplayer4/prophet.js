@@ -106,6 +106,9 @@ export class Prophet extends AbstractUnit{
 		else if (other.unit == SPECS.CRUSADER || other.unit == SPECS.PREACHER){
 			distScore += 500000;
 		}
+		else if (other.unit == SPECS.CASTLE){
+			distScore += 250000;
+		}
 		return distScore + other.id;
 	}
 

@@ -17,8 +17,8 @@ export const constants = {
 	karboniteReserve: 50, //Amt of karbonite reserved for alerts
 	churchKarboniteReserve: 25, //Amt of karbonite reserved by churches
 	defaultSpread: 3, //Default amt to spread out by
-	noSignalFuel: 250, //Fuel level below which no signalling occurs
-	noRobotFuel: 250, //Fuel level below which no robot production occurs
+	noSignalFuel: 100, //Fuel level below which no signalling occurs
+	noRobotFuel: 350, //Fuel level below which no robot production occurs
 	criticalMass: 7, //Critical Mass of units at which an attack is ordered
 	unitBelongRadius: 100, //Radius at which a unit is recorded as belonging to this particular castle
 	spreadRatio: 0.3, //Ratio used to determine unit spread

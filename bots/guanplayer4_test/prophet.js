@@ -42,7 +42,6 @@ export class Prophet extends AbstractUnit{
 		@return an attack or move based on the micro
 	*/
 	microMove(bc){
-		//bc.log("Micro Moving");
 		//TODO: Return an attack or move based on the micro
 		//Naive: Attack anything in range
 		let visibleRobots = bc.getVisibleRobots();
@@ -95,12 +94,21 @@ export class Prophet extends AbstractUnit{
 				bestMove = i;
 			}
 		}
-		return bc.move(constants.dirReallyFast[bestMove][0], constants.dirReallyFast[bestMove][1]);
+		return bc.move(constants.dirFast[bestMove][0], constants.dirFast[bestMove][1]);
 	}
 
 	getAttackScore(bc, other){
 		//Attack closest and highest ID
-		let distScore = (100 - this.distSquared([bc.me.x, bc.me.y], [other.x, other.y])) * 1000;
+		let distScore = (100 - this.distSquared([bc.me.x, bc.me.y], [other.x, other.y])) * 100;
+		if (other.unit == SPECS.PROPHET){
+			distScore += 1000000;
+		}
+		else if (other.unit == SPECS.CRUSADER || other.unit == SPECS.PREACHER){
+			distScore += 500000;
+		}
+		else if (other.unit == SPECS.CASTLE){
+			distScore += 250000;
+		}
 		return distScore + other.id;
 	}
 

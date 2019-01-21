@@ -38,10 +38,17 @@ export class AbstractUnit{
 				break;
 			}
 		}
+		if (bc.me.unit == SPECS.CHURCH){
+			constants.noRobotFuel *= 2;
+		}
 		//this.bc = battleCode;
 	}
 
 	takeTurn(bc){
+		//Double fuel requirement on turn 50 or if this is a church
+		if (bc.me.unit != SPECS.CHURCH && bc.me.turn == 50){
+			constants.noRobotFuel *= 2;
+		}
 		this.step++;
 		this.robomap = bc.getVisibleRobotMap(); //Generate robot map once
 		this.visibleRobots = bc.getVisibleRobots(); //Get visible robots
@@ -104,7 +111,7 @@ export class AbstractUnit{
 			//Check for broadcast messages coming from friendly castles
 			for (let i = 0; i < this.visibleRobots.length; i++){
 				let robot = this.visibleRobots[i];
-				if (robot.team == bc.me.team && robot.unit == SPECS.CASTLE){
+				if (robot.team == bc.me.team && (robot.unit == SPECS.CASTLE || robot.unit == SPECS.CHURCH)){
 					let signal = robot.signal;
 					//Castle signal
 					//bc.log(`Read signal ${signal}`);
@@ -150,12 +157,20 @@ export class AbstractUnit{
 				if (bc.me.turn >= 3 && this.distSquared([bc.me.x, bc.me.y], [this.ownerCastle[0], this.ownerCastle[1]]) <= 4){
 					//Move to somewhere random on a 4 move radius
 					let tgt = this.spreadoutMove(bc, bc.me.x, bc.me.y);
+					this.settlePos = tgt;
 					//bc.log(`Spreading out to (${tgt[0]},${tgt[1]})`)
 					if (tgt != null){
 						return this.moveToTarget(bc, [tgt], constants.dirFuelSave, false);
 					}
 				}
-				if (bc.fuel >= constants.attackFuel || bc.me.turn >= constants.rushTurn || bc.me.health != SPECS.UNITS[bc.me.unit].STARTING_HP){
+				let numAlliedBots = 0;
+				for (let i = 0; i < this.visibleRobots.length; i++){
+					let robot = this.visibleRobots[i];
+					if (robot.team == bc.me.team && (robot.unit == SPECS.PROPHET || robot.unit == SPECS.PREACHER || robot.unit == SPECS.CRUSADER)){
+						numAlliedBots += 1;
+					}
+				}
+				if (numAlliedBots >= constants.criticalMass){
 					//bc.log("Entering attack mode");
 					this.attack_mode = true;
 				}
@@ -163,10 +178,19 @@ export class AbstractUnit{
 				if (this.attack_mode){
 					//bc.log("Targets: " + this.enemy_castles);
 					//Performs a move to target
-					let move = this.moveToTarget(bc, this.enemy_castles);
+					let move = this.moveToTarget(bc, this.enemy_castles, constants.dirFast);
 					if (move){
 						return move;
 					}
+				}
+				else{
+					/*if (this.settlePos){
+						bc.log("Settle Pos: " + this.settlePos);
+					}*/
+					/*if (this.settlePos && this.distSquared(this.settlePos, [bc.me.x, bc.me.y]) > 1){
+						//bc.log("Returning to settle pos");
+						return this.moveToTarget(bc, [this.settlePos], constants.dirFuelSave, false);
+					}*/
 				}
 			}
 		}
@@ -345,6 +369,105 @@ export class AbstractUnit{
 			ans[bestCentroid].push(targets[i]);
 		}
 		return ans;
+	}
+
+	getChurchPositions(bc, friendlyCastles, enemyCastles){
+		let positions = [];
+		let assignments = {};
+		let deposits = this.getDeposits(bc);
+		//Consider both friendly and enemy castles
+		for (let i = 0; i < friendlyCastles.length; i++){
+			positions.push([friendlyCastles[i][0], friendlyCastles[i][1]]);
+		}
+		for (let i = 0; i < enemyCastles.length; i++){
+			positions.push([friendlyCastles[i][0], friendlyCastles[i][1]]);
+		}
+		//Eliminate all coordinates that are already processed
+		for (let i = 0; i < positions.length; i++){
+			//assignments[i] = [];
+			for (let j = 0; j < deposits.length; j++){
+				if (this.distSquared(positions[i], deposits[j]) <= constants.clusterRadius){
+					deposits.splice(j, 1);
+					j--;
+				}
+			}
+		}
+		//Assignments and positions only for churches, not for castles
+		positions = [];
+		//Process the rest of the deposits
+		while (deposits.length > 0){
+			//bc.log(deposits.length);
+			let newCluster = deposits.splice(0, 1);
+			let dep = newCluster[0];
+			for (let i = 0; i < deposits.length; i++){
+				if (this.distSquared(dep, deposits[i]) <= constants.clusterRadius * 4){
+					newCluster.push(deposits[i]);
+					deposits.splice(i, 1);
+					i--;
+				}
+			}
+			//bc.log(newCluster);
+			//Add new cluster to list
+			let sum = [0, 0];
+			for (let i = 0; i < newCluster.length; i++){
+				sum[0] += newCluster[i][0];
+				sum[1] += newCluster[i][1];
+			}
+			sum[0] = Math.floor(sum[0] / newCluster.length);
+			sum[1] = Math.floor(sum[1] / newCluster.length);
+			//bc.log(sum);
+			let finalPos = [0,0];
+			//Build church at sum[0],sum[1]
+			for (let i = 0; i < constants.dirBuildChurch.length; i++){
+				let dir = constants.dirBuildChurch[i];
+				let nx = sum[0] + dir[0];
+				let ny = sum[1] + dir[1];
+				if (!bc.karbonite_map[ny][nx] && !bc.fuel_map[ny][nx] && bc.map[ny][nx]){
+					finalPos = [nx, ny];
+					break;
+				}
+			}
+			//bc.log(finalPos);
+			assignments[positions.length] = newCluster;
+			positions.push(finalPos);
+		}
+		//Evaluate and sort church positions by their values
+		let newPositions = [];
+		for (let i = 0; i < positions.length; i++){
+			newPositions.push([i, positions[i]]);
+		}
+		let unit = this;
+		newPositions.sort(function(pos1, pos2){
+			let score1 = unit.getChurchScore(pos1[1], assignments[pos1[0]], friendlyCastles, enemyCastles);
+			let score2 = unit.getChurchScore(pos2[1], assignments[pos2[0]], friendlyCastles, enemyCastles);
+			return score2 - score1;
+		});
+		positions = [];
+		let newAssignments = {};
+		for (let i = 0; i < newPositions.length; i++){
+			positions.push(newPositions[i][1]);
+			newAssignments[i] = assignments[newPositions[i][0]];
+		}
+		assignments = newAssignments;
+		//First church position should have highest score
+		bc.log("Church Positions");
+		bc.log(positions);
+		bc.log("Church Assignments");
+		bc.log(assignments);
+		//Return an array containing a positions array and an assignments array
+		return [positions, assignments];
+	}
+
+	getChurchScore(churchPos, assignedRes, friendlyCastles, enemyCastles){
+		//Get minimum distance squared to an enemy castle
+		let leastDistSquared = 1000000000;
+		for (let i = 0; i < enemyCastles.length; i++){
+			leastDistSquared = Math.min(leastDistSquared, this.distSquared(enemyCastles[i], churchPos));
+		}
+		//Get expected resource income from this church
+		//Need to adjust this
+		//Tweak constants to adjust between risk and reward
+		return Math.pow(leastDistSquared, 0.66) * 10 + assignedRes.length * 200;
 	}
 
 	/**
@@ -559,7 +682,16 @@ export class AbstractUnit{
 		if (possibleLoc.length == 0){
 			return null;
 		}
-		return possibleLoc[Math.floor(this.seededRandom(0, possibleLoc.length))];
+		//Sort possible locations by distance to enemy castle
+		let enemyCastle = this.getOppositePoint(this.ownerCastle[0], this.ownerCastle[1], this.map_horizontal_symmetry);
+		possibleLoc.sort((a,b) => {
+			return this.distSquared(a, enemyCastle) - this.distSquared(b, enemyCastle);
+		})
+		let debugArr = [];
+		for (let i = 0; i < possibleLoc.length; i++){
+			debugArr.push(this.distSquared(possibleLoc[i], enemyCastle));
+		}
+		return possibleLoc[Math.floor(this.seededRandom(0, Math.floor(possibleLoc.length * constants.spreadRatio)))];
 	}
 
 	moveToTarget(bc, targets, dir = constants.dirFuelSave, passThruUnits = true){
@@ -692,7 +824,7 @@ export class AbstractUnit{
 	}
 
 	canAttack(bc, other){
-		return this.isWithinRange(bc, other) && bc.fuel >= SPECS.UNITS[bc.me.unit].ATTACK_FUEL_COST;
+		return this.isWithinRange(bc, other); //&& bc.fuel >= SPECS.UNITS[bc.me.unit].ATTACK_FUEL_COST;
 	}
 
 	addFriendlyCastle(newCastle){

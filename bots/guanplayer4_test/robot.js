@@ -3,6 +3,7 @@ import {Crusader} from 'crusader.js';
 import {Castle} from 'castle.js';
 import {Pilgrim} from 'pilgrim.js';
 import {Prophet} from 'prophet.js';
+import {Church} from 'church.js';
 
 class MyRobot extends BCAbstractRobot {
     constructor(){
@@ -24,6 +25,9 @@ class MyRobot extends BCAbstractRobot {
             }
             else if (this.me.unit == SPECS.PROPHET){
                 this.robot = new Prophet(this);
+            }
+            else if (this.me.unit == SPECS.CHURCH){
+                this.robot = new Church(this);
             }
         }
         return this.robot.takeTurn(this);

@@ -1,6 +1,6 @@
 'use strict';
 
-var SPECS = {"COMMUNICATION_BITS":16,"CASTLE_TALK_BITS":8,"MAX_ROUNDS":1000,"TRICKLE_FUEL":25,"INITIAL_KARBONITE":100,"INITIAL_FUEL":500,"MINE_FUEL_COST":1,"KARBONITE_YIELD":2,"FUEL_YIELD":10,"MAX_TRADE":1024,"MAX_BOARD_SIZE":64,"MAX_ID":4096,"CASTLE":0,"CHURCH":1,"PILGRIM":2,"CRUSADER":3,"PROPHET":4,"PREACHER":5,"RED":0,"BLUE":1,"CHESS_INITIAL":100,"CHESS_EXTRA":20,"TURN_MAX_TIME":200,"MAX_MEMORY":50000000,"UNITS":[{"CONSTRUCTION_KARBONITE":null,"CONSTRUCTION_FUEL":null,"KARBONITE_CAPACITY":null,"FUEL_CAPACITY":null,"SPEED":0,"FUEL_PER_MOVE":null,"STARTING_HP":100,"VISION_RADIUS":100,"ATTACK_DAMAGE":null,"ATTACK_RADIUS":null,"ATTACK_FUEL_COST":null,"DAMAGE_SPREAD":null},{"CONSTRUCTION_KARBONITE":50,"CONSTRUCTION_FUEL":200,"KARBONITE_CAPACITY":null,"FUEL_CAPACITY":null,"SPEED":0,"FUEL_PER_MOVE":null,"STARTING_HP":50,"VISION_RADIUS":100,"ATTACK_DAMAGE":null,"ATTACK_RADIUS":null,"ATTACK_FUEL_COST":null,"DAMAGE_SPREAD":null},{"CONSTRUCTION_KARBONITE":10,"CONSTRUCTION_FUEL":50,"KARBONITE_CAPACITY":20,"FUEL_CAPACITY":100,"SPEED":4,"FUEL_PER_MOVE":1,"STARTING_HP":10,"VISION_RADIUS":100,"ATTACK_DAMAGE":null,"ATTACK_RADIUS":null,"ATTACK_FUEL_COST":null,"DAMAGE_SPREAD":null},{"CONSTRUCTION_KARBONITE":20,"CONSTRUCTION_FUEL":50,"KARBONITE_CAPACITY":20,"FUEL_CAPACITY":100,"SPEED":9,"FUEL_PER_MOVE":1,"STARTING_HP":40,"VISION_RADIUS":36,"ATTACK_DAMAGE":10,"ATTACK_RADIUS":[1,16],"ATTACK_FUEL_COST":10,"DAMAGE_SPREAD":0},{"CONSTRUCTION_KARBONITE":25,"CONSTRUCTION_FUEL":50,"KARBONITE_CAPACITY":20,"FUEL_CAPACITY":100,"SPEED":4,"FUEL_PER_MOVE":2,"STARTING_HP":20,"VISION_RADIUS":64,"ATTACK_DAMAGE":10,"ATTACK_RADIUS":[16,64],"ATTACK_FUEL_COST":25,"DAMAGE_SPREAD":0},{"CONSTRUCTION_KARBONITE":30,"CONSTRUCTION_FUEL":50,"KARBONITE_CAPACITY":20,"FUEL_CAPACITY":100,"SPEED":4,"FUEL_PER_MOVE":3,"STARTING_HP":60,"VISION_RADIUS":16,"ATTACK_DAMAGE":20,"ATTACK_RADIUS":[1,16],"ATTACK_FUEL_COST":15,"DAMAGE_SPREAD":3}]};
+var SPECS = {"COMMUNICATION_BITS":16,"CASTLE_TALK_BITS":8,"MAX_ROUNDS":1000,"TRICKLE_FUEL":25,"INITIAL_KARBONITE":100,"INITIAL_FUEL":500,"MINE_FUEL_COST":1,"KARBONITE_YIELD":2,"FUEL_YIELD":10,"MAX_TRADE":1024,"MAX_BOARD_SIZE":64,"MAX_ID":4096,"CASTLE":0,"CHURCH":1,"PILGRIM":2,"CRUSADER":3,"PROPHET":4,"PREACHER":5,"RED":0,"BLUE":1,"CHESS_INITIAL":100,"CHESS_EXTRA":20,"TURN_MAX_TIME":200,"MAX_MEMORY":50000000,"UNITS":[{"CONSTRUCTION_KARBONITE":null,"CONSTRUCTION_FUEL":null,"KARBONITE_CAPACITY":null,"FUEL_CAPACITY":null,"SPEED":0,"FUEL_PER_MOVE":null,"STARTING_HP":200,"VISION_RADIUS":100,"ATTACK_DAMAGE":10,"ATTACK_RADIUS":[1,64],"ATTACK_FUEL_COST":10,"DAMAGE_SPREAD":0},{"CONSTRUCTION_KARBONITE":50,"CONSTRUCTION_FUEL":200,"KARBONITE_CAPACITY":null,"FUEL_CAPACITY":null,"SPEED":0,"FUEL_PER_MOVE":null,"STARTING_HP":100,"VISION_RADIUS":100,"ATTACK_DAMAGE":0,"ATTACK_RADIUS":0,"ATTACK_FUEL_COST":0,"DAMAGE_SPREAD":0},{"CONSTRUCTION_KARBONITE":10,"CONSTRUCTION_FUEL":50,"KARBONITE_CAPACITY":20,"FUEL_CAPACITY":100,"SPEED":4,"FUEL_PER_MOVE":1,"STARTING_HP":10,"VISION_RADIUS":100,"ATTACK_DAMAGE":null,"ATTACK_RADIUS":null,"ATTACK_FUEL_COST":null,"DAMAGE_SPREAD":null},{"CONSTRUCTION_KARBONITE":15,"CONSTRUCTION_FUEL":50,"KARBONITE_CAPACITY":20,"FUEL_CAPACITY":100,"SPEED":9,"FUEL_PER_MOVE":1,"STARTING_HP":40,"VISION_RADIUS":49,"ATTACK_DAMAGE":10,"ATTACK_RADIUS":[1,16],"ATTACK_FUEL_COST":10,"DAMAGE_SPREAD":0},{"CONSTRUCTION_KARBONITE":25,"CONSTRUCTION_FUEL":50,"KARBONITE_CAPACITY":20,"FUEL_CAPACITY":100,"SPEED":4,"FUEL_PER_MOVE":2,"STARTING_HP":20,"VISION_RADIUS":64,"ATTACK_DAMAGE":10,"ATTACK_RADIUS":[16,64],"ATTACK_FUEL_COST":25,"DAMAGE_SPREAD":0},{"CONSTRUCTION_KARBONITE":30,"CONSTRUCTION_FUEL":50,"KARBONITE_CAPACITY":20,"FUEL_CAPACITY":100,"SPEED":4,"FUEL_PER_MOVE":3,"STARTING_HP":60,"VISION_RADIUS":16,"ATTACK_DAMAGE":20,"ATTACK_RADIUS":[1,16],"ATTACK_FUEL_COST":15,"DAMAGE_SPREAD":3}]};
 
 function insulate(content) {
     return JSON.parse(JSON.stringify(content));
@@ -96,15 +96,16 @@ class BCAbstractRobot {
     // Set signal value.
     signal(value, radius) {
         // Check if enough fuel to signal, and that valid value.
-
-        if (this.fuel < radius) throw "Not enough fuel to signal given radius.";
+        
+        var fuelNeeded = Math.ceil(Math.sqrt(radius));
+        if (this.fuel < fuelNeeded) throw "Not enough fuel to signal given radius.";
         if (!Number.isInteger(value) || value < 0 || value >= Math.pow(2,SPECS.COMMUNICATION_BITS)) throw "Invalid signal, must be int within bit range.";
         if (radius > 2*Math.pow(SPECS.MAX_BOARD_SIZE-1,2)) throw "Signal radius is too big.";
 
         this._bc_signal = value;
         this._bc_signal_radius = radius;
 
-        this.fuel -= radius;
+        this.fuel -= fuelNeeded;
     }
 
     // Set castle talk value.
@@ -187,11 +188,10 @@ class BCAbstractRobot {
     }
 
     attack(dx, dy) {
-        if (this.me.unit !== SPECS.CRUSADER && this.me.unit !== SPECS.PREACHER && this.me.unit !== SPECS.PROPHET) throw "Given unit cannot attack.";
+        if (this.me.unit === SPECS.CHURCH) throw "Churches cannot attack.";
         if (this.fuel < SPECS.UNITS[this.me.unit].ATTACK_FUEL_COST) throw "Not enough fuel to attack.";
         if (!this._bc_check_on_map(this.me.x+dx,this.me.y+dy)) throw "Can't attack off of map.";
         if (this._bc_game_state.shadow[this.me.y+dy][this.me.x+dx] === -1) throw "Cannot attack outside of vision range.";
-        if (!this.map[this.me.y+dy][this.me.x+dx]) throw "Cannot attack impassable terrain.";
 
         var r = Math.pow(dx,2) + Math.pow(dy,2);
         if (r > SPECS.UNITS[this.me.unit]['ATTACK_RADIUS'][1] || r < SPECS.UNITS[this.me.unit]['ATTACK_RADIUS'][0]) throw "Cannot attack outside of attack range.";
@@ -215,7 +215,7 @@ class BCAbstractRobot {
 
     // Check if a given robot is visible.
     isVisible(robot) {
-        return ('x' in robot);
+        return ('unit' in robot);
     }
 
     // Check if a given robot is sending you radio.
@@ -258,19 +258,26 @@ const constants = {
 	//numkMeansIter : 10, //No of k means iterations
 	microRadius : 125, //Radius to micro
 	attackFuel: 750, //Amount of fuel at which we'll attack
+	dirBuildChurch: [[0,0], [0,-1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]],
 	dirFuelSave: [[0,-1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]],
 	dirFast: [[0,-1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, 2], [0, -2], [2, 0], [-2, 0]],
 	dirReallyFast: [[0,-1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, 2], [0, -2], [2, 0], [-2, 0], 
 	[2, 1], [2, -1], [-2, 1], [-2, -1], [1, 2], [-1, 2], [-1, -2], [1, -2], [2, 2], [2, -2], [-2, 2], [-2, -2], [3, 0],
 	[-3, 0], [0, 3], [0, -3]],
-	maxSignalRadius : 9, //Radius to be signalled by castles
-	maxAlertRadius: 16, //Maximum radius to send an alert
+	maxSignalRadius : 100, //Radius to be signalled by castles
+	maxAlertRadius: 100, //Maximum radius to send an alert
 	alertCooldown: 20, //Number of turns in which a new alert can be issued
 	alertUnitType: SPECS.PROPHET, //Unit type to be produced on alert
 	karboniteReserve: 50, //Amt of karbonite reserved for alerts
+	churchKarboniteReserve: 25, //Amt of karbonite reserved by churches
 	defaultSpread: 3, //Default amt to spread out by
-	rushTurn: 30, //Turn at which to force attack
-	noSignalFuel: 250, //Fuel level below which no signalling occurs
+	noSignalFuel: 100, //Fuel level below which no signalling occurs
+	noRobotFuel: 350, //Fuel level below which no robot production occurs
+	criticalMass: 7, //Critical Mass of units at which an attack is ordered
+	unitBelongRadius: 100, //Radius at which a unit is recorded as belonging to this particular castle
+	spreadRatio: 0.3, //Ratio used to determine unit spread
+	clusterRadius: 25, //Dist Squared at which to consider as a single mineral cluster, this can't be more than 100
+	churchBuildTurn: 50, //Turn at which to build first church
 };
 
 /**
@@ -311,10 +318,17 @@ class AbstractUnit{
 				break;
 			}
 		}
+		if (bc.me.unit == SPECS.CHURCH){
+			constants.noRobotFuel *= 2;
+		}
 		//this.bc = battleCode;
 	}
 
 	takeTurn(bc){
+		//Double fuel requirement on turn 50 or if this is a church
+		if (bc.me.unit != SPECS.CHURCH && bc.me.turn == 50){
+			constants.noRobotFuel *= 2;
+		}
 		this.step++;
 		this.robomap = bc.getVisibleRobotMap(); //Generate robot map once
 		this.visibleRobots = bc.getVisibleRobots(); //Get visible robots
@@ -377,7 +391,7 @@ class AbstractUnit{
 			//Check for broadcast messages coming from friendly castles
 			for (let i = 0; i < this.visibleRobots.length; i++){
 				let robot = this.visibleRobots[i];
-				if (robot.team == bc.me.team && robot.unit == SPECS.CASTLE){
+				if (robot.team == bc.me.team && (robot.unit == SPECS.CASTLE || robot.unit == SPECS.CHURCH)){
 					let signal = robot.signal;
 					//Castle signal
 					//bc.log(`Read signal ${signal}`);
@@ -421,12 +435,20 @@ class AbstractUnit{
 				if (bc.me.turn >= 3 && this.distSquared([bc.me.x, bc.me.y], [this.ownerCastle[0], this.ownerCastle[1]]) <= 4){
 					//Move to somewhere random on a 4 move radius
 					let tgt = this.spreadoutMove(bc, bc.me.x, bc.me.y);
+					this.settlePos = tgt;
 					//bc.log(`Spreading out to (${tgt[0]},${tgt[1]})`)
 					if (tgt != null){
 						return this.moveToTarget(bc, [tgt], constants.dirFuelSave, false);
 					}
 				}
-				if (bc.fuel >= constants.attackFuel || bc.me.turn >= constants.rushTurn || bc.me.health != SPECS.UNITS[bc.me.unit].STARTING_HP){
+				let numAlliedBots = 0;
+				for (let i = 0; i < this.visibleRobots.length; i++){
+					let robot = this.visibleRobots[i];
+					if (robot.team == bc.me.team && (robot.unit == SPECS.PROPHET || robot.unit == SPECS.PREACHER || robot.unit == SPECS.CRUSADER)){
+						numAlliedBots += 1;
+					}
+				}
+				if (numAlliedBots >= constants.criticalMass){
 					//bc.log("Entering attack mode");
 					this.attack_mode = true;
 				}
@@ -434,7 +456,7 @@ class AbstractUnit{
 				if (this.attack_mode){
 					//bc.log("Targets: " + this.enemy_castles);
 					//Performs a move to target
-					let move = this.moveToTarget(bc, this.enemy_castles);
+					let move = this.moveToTarget(bc, this.enemy_castles, constants.dirFast);
 					if (move){
 						return move;
 					}
@@ -616,6 +638,105 @@ class AbstractUnit{
 			ans[bestCentroid].push(targets[i]);
 		}
 		return ans;
+	}
+
+	getChurchPositions(bc, friendlyCastles, enemyCastles){
+		let positions = [];
+		let assignments = {};
+		let deposits = this.getDeposits(bc);
+		//Consider both friendly and enemy castles
+		for (let i = 0; i < friendlyCastles.length; i++){
+			positions.push([friendlyCastles[i][0], friendlyCastles[i][1]]);
+		}
+		for (let i = 0; i < enemyCastles.length; i++){
+			positions.push([friendlyCastles[i][0], friendlyCastles[i][1]]);
+		}
+		//Eliminate all coordinates that are already processed
+		for (let i = 0; i < positions.length; i++){
+			//assignments[i] = [];
+			for (let j = 0; j < deposits.length; j++){
+				if (this.distSquared(positions[i], deposits[j]) <= constants.clusterRadius){
+					deposits.splice(j, 1);
+					j--;
+				}
+			}
+		}
+		//Assignments and positions only for churches, not for castles
+		positions = [];
+		//Process the rest of the deposits
+		while (deposits.length > 0){
+			//bc.log(deposits.length);
+			let newCluster = deposits.splice(0, 1);
+			let dep = newCluster[0];
+			for (let i = 0; i < deposits.length; i++){
+				if (this.distSquared(dep, deposits[i]) <= constants.clusterRadius * 4){
+					newCluster.push(deposits[i]);
+					deposits.splice(i, 1);
+					i--;
+				}
+			}
+			//bc.log(newCluster);
+			//Add new cluster to list
+			let sum = [0, 0];
+			for (let i = 0; i < newCluster.length; i++){
+				sum[0] += newCluster[i][0];
+				sum[1] += newCluster[i][1];
+			}
+			sum[0] = Math.floor(sum[0] / newCluster.length);
+			sum[1] = Math.floor(sum[1] / newCluster.length);
+			//bc.log(sum);
+			let finalPos = [0,0];
+			//Build church at sum[0],sum[1]
+			for (let i = 0; i < constants.dirBuildChurch.length; i++){
+				let dir = constants.dirBuildChurch[i];
+				let nx = sum[0] + dir[0];
+				let ny = sum[1] + dir[1];
+				if (!bc.karbonite_map[ny][nx] && !bc.fuel_map[ny][nx] && bc.map[ny][nx]){
+					finalPos = [nx, ny];
+					break;
+				}
+			}
+			//bc.log(finalPos);
+			assignments[positions.length] = newCluster;
+			positions.push(finalPos);
+		}
+		//Evaluate and sort church positions by their values
+		let newPositions = [];
+		for (let i = 0; i < positions.length; i++){
+			newPositions.push([i, positions[i]]);
+		}
+		let unit = this;
+		newPositions.sort(function(pos1, pos2){
+			let score1 = unit.getChurchScore(pos1[1], assignments[pos1[0]], friendlyCastles, enemyCastles);
+			let score2 = unit.getChurchScore(pos2[1], assignments[pos2[0]], friendlyCastles, enemyCastles);
+			return score2 - score1;
+		});
+		positions = [];
+		let newAssignments = {};
+		for (let i = 0; i < newPositions.length; i++){
+			positions.push(newPositions[i][1]);
+			newAssignments[i] = assignments[newPositions[i][0]];
+		}
+		assignments = newAssignments;
+		//First church position should have highest score
+		bc.log("Church Positions");
+		bc.log(positions);
+		bc.log("Church Assignments");
+		bc.log(assignments);
+		//Return an array containing a positions array and an assignments array
+		return [positions, assignments];
+	}
+
+	getChurchScore(churchPos, assignedRes, friendlyCastles, enemyCastles){
+		//Get minimum distance squared to an enemy castle
+		let leastDistSquared = 1000000000;
+		for (let i = 0; i < enemyCastles.length; i++){
+			leastDistSquared = Math.min(leastDistSquared, this.distSquared(enemyCastles[i], churchPos));
+		}
+		//Get expected resource income from this church
+		//Need to adjust this
+		//Tweak constants to adjust between risk and reward
+		return Math.pow(leastDistSquared, 0.66) * 10 + assignedRes.length * 200;
 	}
 
 	/**
@@ -830,7 +951,16 @@ class AbstractUnit{
 		if (possibleLoc.length == 0){
 			return null;
 		}
-		return possibleLoc[Math.floor(this.seededRandom(0, possibleLoc.length))];
+		//Sort possible locations by distance to enemy castle
+		let enemyCastle = this.getOppositePoint(this.ownerCastle[0], this.ownerCastle[1], this.map_horizontal_symmetry);
+		possibleLoc.sort((a,b) => {
+			return this.distSquared(a, enemyCastle) - this.distSquared(b, enemyCastle);
+		});
+		let debugArr = [];
+		for (let i = 0; i < possibleLoc.length; i++){
+			debugArr.push(this.distSquared(possibleLoc[i], enemyCastle));
+		}
+		return possibleLoc[Math.floor(this.seededRandom(0, Math.floor(possibleLoc.length * constants.spreadRatio)))];
 	}
 
 	moveToTarget(bc, targets, dir = constants.dirFuelSave, passThruUnits = true){
@@ -963,7 +1093,7 @@ class AbstractUnit{
 	}
 
 	canAttack(bc, other){
-		return this.isWithinRange(bc, other) && bc.fuel >= SPECS.UNITS[bc.me.unit].ATTACK_FUEL_COST;
+		return this.isWithinRange(bc, other); //&& bc.fuel >= SPECS.UNITS[bc.me.unit].ATTACK_FUEL_COST;
 	}
 
 	addFriendlyCastle(newCastle){
@@ -1163,7 +1293,7 @@ class Castle extends AbstractUnit{
 		this.castle_id = -1; //Castle 1 => 1st castle, 2 => 2nd castle, 3 => 3rd castle
 		this.other_castles = {}; //Represents locations of other castles
 		this.signal_queue = []; //Queue to be used to signal units
-		this.resource_pref = 1; //0 => both deposits, 1 => karbonite, 2 => fuel (Set this before building pilgrims)
+		this.resource_pref = 1; //0 => both deposits, 1 => karbonite, 2 => fuel (Set this before building pilgrims), 3 => build church
 		this.friendly_robots = {};
 		this.allTargets = this.getDeposits(bc, 0); //A reference to every deposit
 	}
@@ -1172,7 +1302,8 @@ class Castle extends AbstractUnit{
 		/*
 			Guide to castle talk:
 			0 - 64 => target x or y location (within first 5 turns)
-			254 => Under attack
+			253 => Normal Church
+			254 => Under attack (Castle Only)
 			255 => normal operation
 		*/
 		super.takeTurn(bc); //Perform any behaviour shared by all units before taking turn
@@ -1234,6 +1365,8 @@ class Castle extends AbstractUnit{
 			}
 			//Compute locations of enemy castles
 			this.enemy_castles = this.getEnemyCastles(bc, this.friendly_castles);
+			//Don't care about assignments, churches should be sorted by score
+			this.churchPos = this.getChurchPositions(bc, this.friendly_castles, this.enemy_castles)[0];
 			bc.log("Enemy castles predicted at: " + this.enemy_castles);
 			canSignal = true;
 		}
@@ -1268,8 +1401,12 @@ class Castle extends AbstractUnit{
 				}
 			}
 			if (this.should_micro){
-				//I'm currently on alert, should produce crusaders
-				return this.buildUnit(bc, constants.alertUnitType);
+				//I'm currently on alert, should build units
+				let action = this.buildUnit(bc, constants.alertUnitType);
+				if (!action){
+					return this.attackNearestEnemy(bc);
+				}
+				return action;
 			}
 			else{
 				//Check if some other castle is on alert, don't build if some other castle is on alert
@@ -1287,12 +1424,17 @@ class Castle extends AbstractUnit{
 					let next_build_unit = this.getNextBuildUnit(num_units, this.friendly_castles.length);
 					//Switch harvest preference here
 					//First two pilgrims karbonite only
-					if (num_pilgrims <= 1){
-						this.resource_pref = 1; //karbonite only
+					if (bc.me.turn <= constants.churchBuildTurn){
+						if (num_pilgrims <= 1){
+							this.resource_pref = 1; //karbonite only
+						}
+						else{
+							//Next two pilgrims anything
+							this.resource_pref = 0; //both
+						}
 					}
 					else{
-						//Next two pilgrims anything
-						this.resource_pref = 0; //both
+						this.resource_pref = 3;
 					}
 					/*if (bc.fuel <= 250){
 						this.resource_pref = 2; //fuel only
@@ -1307,10 +1449,10 @@ class Castle extends AbstractUnit{
 					}*/
 					bc.log(`We has ${bc.karbonite} karbonite and ${bc.fuel} fuel. Next unit at castle ${next_build_unit[1]}`);
 					//Need to be robust, override requirement for specific castle if turn is > 15 and we have > 30 karbonite
-					if (next_build_unit[1] == this.castle_id || castleDestroyed || (bc.karbonite > 60 && bc.fuel > 750)){
+					if (next_build_unit[1] == this.castle_id || (next_build_unit[0] == SPECS.PILGRIM && bc.me.turn <= constants.churchBuildTurn) || castleDestroyed || (bc.karbonite > 60 && bc.fuel > 750)){
 						//Build the relevant unit, then signal
 						//Reserve 40 karbonite in case of attack
-						let action = this.buildUnit(bc, next_build_unit[0], constants.karboniteReserve);
+						let action = this.buildUnit(bc, next_build_unit[0], constants.karboniteReserve, constants.noRobotFuel);
 						if (canSignal && this.signal_queue.length > 0){
 							let signal = this.signal_queue.splice(0, 1)[0];
 							this.signalAllies(bc, signal);
@@ -1375,32 +1517,67 @@ class Castle extends AbstractUnit{
 			let ny = bc.me.y + dir[i][1];
 			if (unitType == SPECS.PILGRIM){
 				if (!this.isOccupied(bc, nx, ny)){
-					//TODO: Compute mining target
-					let targetIdx = -1;
-					let allTargets = this.allTargets;
-					let legitTargets = this.getUnminedDeposits(bc, this.resource_pref);
-					//Can't build unit, no remaining targets left
-					if (legitTargets.length == 0){
-						bc.log("All mining targets are taken");
-						return;
-					}
-					let target = this.makeMoveQueue(bc, bc.me.x, bc.me.y, legitTargets, constants.dirFuelSave, false, true)[0];
-					//bc.log(`Target: ${target}`);
-					//bc.log(`Legit Targets: ${legitTargets}`);
-					for (let j = 0; j < allTargets.length; j++){
-						if (allTargets[j][0] == target[0] && allTargets[j][1] == target[1]){
-							targetIdx = j;
-							break;
+					if (this.resource_pref == 3){
+						//An order to build a church
+						//Listen to all churches
+						let churches = this.getChurches();
+						for (let j = 0; j < this.churchPos.length; j++){
+							if (!churches.hasOwnProperty(j)){
+								//Am I the closest castle to this church
+								let closestCastle = -1;
+								let leastDist = 1000000000;
+								for (let aa = 0; aa < this.friendly_castles.length; aa++){
+									let castle = this.friendly_castles[aa];
+									let distSquared = this.distSquared(this.churchPos[j], castle);
+									if (distSquared <= leastDist){
+										leastDist = distSquared;
+										closestCastle = aa;
+									}
+								}
+								//Self must be the closest castle in order to build
+								if (closestCastle != 0){
+									bc.log("not closest castle, closest castle is " + closestCastle);
+									return;
+								}
+								//Build church with ID j
+								for (let j = 1; j < this.friendly_castles.length; j++){
+									let castle = this.friendly_castles[j];
+									this.signal_queue.unshift(castle[0] * 64 + castle[1]);
+								}
+								this.signal_queue.unshift(12288 + j);
+								return bc.buildUnit(unitType, dir[i][0], dir[i][1]);
+							}
 						}
 					}
-					if (targetIdx == -1){
-						bc.log("Could not reach any mining targets");
-						return;
+					else{
+						//An order to mine a certain resource tile
+						//TODO: Compute mining target
+						let targetIdx = -1;
+						let allTargets = this.allTargets;
+						let legitTargets = this.getUnminedDeposits(bc, this.resource_pref);
+						//Can't build unit, no remaining targets left
+						if (legitTargets.length == 0){
+							bc.log("All mining targets are taken");
+							return;
+						}
+						let target = this.makeMoveQueue(bc, bc.me.x, bc.me.y, legitTargets, constants.dirFuelSave, false, true)[0];
+						//bc.log(`Target: ${target}`);
+						//bc.log(`Legit Targets: ${legitTargets}`);
+						for (let j = 0; j < allTargets.length; j++){
+							if (allTargets[j][0] == target[0] && allTargets[j][1] == target[1]){
+								targetIdx = j;
+								break;
+							}
+						}
+						if (targetIdx == -1){
+							bc.log("Could not reach any mining targets");
+							return;
+						}
+						//bc.log(`Signalling index ${targetIdx} to pilgrim`);
+						this.signal_queue.unshift(4096 + targetIdx);
+						//bc.log(this.signal_queue);
+						return bc.buildUnit(unitType, dir[i][0], dir[i][1]);
 					}
-					bc.log(`Signalling index ${targetIdx} to pilgrim`);
-					this.signal_queue.unshift(4096 + targetIdx);
-					bc.log(this.signal_queue);
-					return bc.buildUnit(unitType, dir[i][0], dir[i][1]);
 				}
 			}
 			else{
@@ -1418,12 +1595,23 @@ class Castle extends AbstractUnit{
 		bc.log("Could not place unit!!");
 	}
 
+	attackNearestEnemy(bc){
+		for (let i = 0; i < this.visibleRobots.length; i++){
+			let other = this.visibleRobots[i];
+			if (other.team != bc.me.team && this.canAttack(bc, other)){
+				bc.log(`Castle is attacking enemy at (${other.x},${other.y})`);
+				return bc.attack(other.x - bc.me.x, other.y - bc.me.y);
+			}
+		}
+	}
+
 	signalAllies(bc, signal){
 		/*
 			Guide to signals:
 			< 4096 => Allied castle location signal (x * 64 + y)
 			4096 - 8191 => signal - 4096 is the location on resource array to gather at
 			8192 - 12288 => Alert signal, signal - 8192 is the location on map where an attack is reported
+			12288 - 16383 => Used to convey church index to new churches, also used to convey build church order to pilgrims
 		*/
 		let radius = 1;
 		if (signal < 4096){
@@ -1476,6 +1664,18 @@ class Castle extends AbstractUnit{
 		return unminedDeposits;
 	}
 
+	getChurches(){
+		//Returns a church object with church IDs
+		let churches = {};
+		for (let i = 0; i < this.visibleRobots.length; i++){
+			let robot = this.visibleRobots[i];
+			if (robot.castle_talk > 220 && robot.castle_talk <= 253){
+				churches[253 - robot.castle_talk] = 1;
+			}
+		}
+		return churches;
+	}
+
 
 }
 
@@ -1493,17 +1693,28 @@ class Pilgrim extends AbstractUnit{
 		let visibleRobots = bc.getVisibleRobots();
 		this.allTargets = this.getDeposits(bc);
 		this.ownerCastle = [0, 0]; //Should not be this value, should be defined as some other value
+		this.shouldBuildChurch = false;
+		this.hasBuiltChurch = false;
+		this.builtChurchTurn = 0;
+		this.churchId = 0;
 		for (let i = 0; i < visibleRobots.length; i++){
 			let robot = visibleRobots[i];
 			//bc.log(this.distSquared([bc.me.x, bc.me.y], [robot.x, robot.y]));
 			if ((robot.unit == SPECS.CASTLE || robot.unit == SPECS.CHURCH) && robot.team == bc.me.team && this.distSquared([bc.me.x, bc.me.y], [robot.x, robot.y]) <= 2){
 				this.ownerCastle = [robot.x, robot.y];
 				bc.log(`Owner castle is at (${robot.x},${robot.y})`);
+				if (robot.signal >= 4096 && robot.signal < 8192){
+					this.targetIdx = robot.signal - 4096;
+					bc.log(`Target index is ${robot.signal - 4096}`);
+					bc.log(`Attempt mine at ${this.allTargets[this.targetIdx]}`);
+					this.targets = [this.allTargets[this.targetIdx]];
+				}
+				else if (robot.signal >= 12288 && robot.signal < 16384){
+					this.shouldBuildChurch = true;
+					this.churchId = robot.signal - 12288;
+				}
 				//bc.log(`Owner castle says ${robot.signal}`);
-				this.targetIdx = robot.signal - 4096;
-				bc.log(`Target index is ${robot.signal - 4096}`);
-				bc.log(`Attempt mine at ${this.allTargets[this.targetIdx]}`);
-				this.targets = [this.allTargets[this.targetIdx]];
+				
 				break;
 			}
 		}
@@ -1526,36 +1737,130 @@ class Pilgrim extends AbstractUnit{
 	takeTurn(bc){
 		//Would not make a move off of super's take turn
 		super.takeTurn(bc);
-		//Broadcast a castle message detailing I'm a pilgrim and my target index
-		bc.castleTalk(64 + this.targetIdx);
+		bc.castleTalk(253 - this.churchId);
 		//bc.log(this.targets);
 		//bc.log(bc.karbonite_map[bc.me.y][bc.me.x]);
-		/*if (this.shouldMicro(bc)){
-			this.microMove(bc);
-		}
-		else {*/
-		if (bc.me.karbonite >= SPECS.UNITS[bc.me.unit].KARBONITE_CAPACITY || bc.me.fuel >= SPECS.UNITS[bc.me.unit].FUEL_CAPACITY){
-			//bc.log("Full of karbonite!!");
-			//bc.log(this.ownerCastle);
-			//If I'm adjacent to a castle, give karbonite to the castle
-			if (this.distSquared([bc.me.x, bc.me.y], [this.ownerCastle[0], this.ownerCastle[1]]) <= 2){
-				return bc.give(this.ownerCastle[0] - bc.me.x, this.ownerCastle[1] - bc.me.y, bc.me.karbonite, bc.me.fuel);
+		if (this.shouldBuildChurch){
+			bc.log(`I'm building church yay`);
+			//TODO: Build church at appropriate position
+			//Wait while friendly and enemy castles are updated by abstract unit
+			if (bc.me.turn == 4){
+				this.churches = this.getChurchPositions(bc, this.friendly_castles, this.enemy_castles);
+				this.churchPos = this.churches[0][this.churchId];
+				this.churchDeposits = this.churches[1][this.churchId];
+				this.churchTiles = [];
+				for (let i = 0; i < constants.dirFuelSave.length; i++){
+					let dir = constants.dirFuelSave[i];
+					let nx = this.churchPos[0] + dir[0];
+					let ny = this.churchPos[1] + dir[1];
+					//bc.log(nx);
+					//bc.log(ny);
+					if (this.isWithinMap(nx, ny)){
+						this.churchTiles.push([nx, ny]);
+					}
+				}
 			}
-			//I'm full, todo: return to base
-			let action = this.moveToTarget(bc, this.homeTiles, constants.dirFast, false);
-			bc.log(this.actions);
-			return action;
+			if (bc.me.turn >= 4){
+				//TODO: If I'm adjacent to the church, build it, then convert me to a mining pilgrim
+				if (this.distSquared(this.churchPos, [bc.me.x, bc.me.y]) <= 2){
+					if (!this.hasBuiltChurch && this.hasEnoughResources(bc, SPECS.CHURCH) && !this.isOccupied(bc, this.churchPos[0], this.churchPos[1])){
+						this.hasBuiltChurch = true;
+						this.builtChurchTurn = bc.me.turn;
+						//Signal Church ID
+						bc.signal(12288 + this.churchId, 2);
+						return bc.buildUnit(SPECS.CHURCH, this.churchPos[0] - bc.me.x, this.churchPos[1] - bc.me.y);
+					}
+					else if (this.hasBuiltChurch){
+						if (bc.me.turn - this.builtChurchTurn <= this.friendly_castles.length){
+							let castle = this.friendly_castles[bc.me.turn - this.builtChurchTurn - 1];
+							//Signal friendly castle location
+							bc.signal(castle[0] * 64 + castle[1], 2);
+							//Done signalling info, become a mining pilgrim
+							if (bc.me.turn - this.builtChurchTurn == this.friendly_castles.length){
+								this.shouldBuildChurch = false;
+								//Get resource tiles church is in charge of
+								let churchTargets = [];
+								for (let i = 0; i < this.allTargets.length; i++){
+									let deposit = this.allTargets[i];
+									if (this.distSquared(deposit, this.churchPos) <= constants.clusterRadius){
+										churchTargets.push([i, this.allTargets[i]]);
+									}
+								}
+								//Sort resource tiles by karbonite first, fuel second
+								churchTargets.sort((target1, target2) => {
+									let targetType1 = 1;
+									if (bc.karbonite_map[target1[1][1]][target1[1][0]]){
+										targetType1 = 0;
+									}
+									let targetType2 = 1;
+									if (bc.karbonite_map[target2[1][1]][target2[1][0]]){
+										targetType2 = 0;
+									}
+									if (targetType1 != targetType2){
+										return targetType1 - targetType2;
+									}
+									else{
+										//Compare by ID
+										return target1[0] - target2[0];
+									}
+								});
+								this.ownerCastle = this.churchPos;
+								this.targets = [this.allTargets[churchTargets[0][0]]];
+								this.targetIdx = churchTargets[0][0];
+								this.homeTiles = [];
+								for (let i = 0; i < constants.dirFuelSave.length; i++){
+									let dir = constants.dirFuelSave[i];
+									let nx = this.ownerCastle[0] + dir[0];
+									let ny = this.ownerCastle[1] + dir[1];
+									//bc.log(nx);
+									//bc.log(ny);
+									if (this.isWithinMap(nx, ny)){
+										this.homeTiles.push([nx, ny]);
+									}
+								}
+								//bc.log("Church Targets");
+								//bc.log(churchTargets);
+								//Change owner
+								//bc.log("Converting to mining unit. Mining at target: " + this.targetIdx);
+							}
+
+						}
+					}
+					//TODO: Build church, signal info to church, then become a mining pilgrim
+				}
+				else{
+					//Move to church build location
+					return this.moveToTarget(bc, this.churchTiles);
+				}
+			}
+			
 		}
 		else{
-			//If I'm already on a karbonite deposit, mine it
-			if (bc.me.x == this.targets[0][0] && bc.me.y == this.targets[0][1]){
-				//bc.log("Mining!!!");
-				return bc.mine();
+			//Broadcast a castle message detailing I'm a pilgrim and my target index
+			bc.castleTalk(64 + this.targetIdx);
+			if (bc.me.karbonite >= SPECS.UNITS[bc.me.unit].KARBONITE_CAPACITY || bc.me.fuel >= SPECS.UNITS[bc.me.unit].FUEL_CAPACITY){
+				//bc.log("Full of karbonite!!");
+				//bc.log(this.ownerCastle);
+				//If I'm adjacent to a castle, give karbonite to the castle
+				if (this.distSquared([bc.me.x, bc.me.y], [this.ownerCastle[0], this.ownerCastle[1]]) <= 2){
+					return bc.give(this.ownerCastle[0] - bc.me.x, this.ownerCastle[1] - bc.me.y, bc.me.karbonite, bc.me.fuel);
+				}
+				//I'm full, todo: return to base
+				let action = this.moveToTarget(bc, this.homeTiles, constants.dirFast, false);
+				//bc.log(this.actions);
+				return action;
 			}
-			//Greedily go to nearest mineral deposit
-			let move = this.moveToTarget(bc, this.targets, constants.dirFast, false);
-			if (move){
-				return move;
+			else{
+				//If I'm already on a karbonite deposit, mine it
+				if (bc.me.x == this.targets[0][0] && bc.me.y == this.targets[0][1]){
+					//bc.log("Mining!!!");
+					return bc.mine();
+				}
+				//Greedily go to nearest mineral deposit
+				let move = this.moveToTarget(bc, this.targets, constants.dirFast, false);
+				if (move){
+					return move;
+				}
 			}
 		}
 		//}
@@ -1616,7 +1921,6 @@ class Prophet extends AbstractUnit{
 		@return an attack or move based on the micro
 	*/
 	microMove(bc){
-		//bc.log("Micro Moving");
 		//TODO: Return an attack or move based on the micro
 		//Naive: Attack anything in range
 		let visibleRobots = bc.getVisibleRobots();
@@ -1669,13 +1973,232 @@ class Prophet extends AbstractUnit{
 				bestMove = i;
 			}
 		}
-		return bc.move(constants.dirReallyFast[bestMove][0], constants.dirReallyFast[bestMove][1]);
+		return bc.move(constants.dirFast[bestMove][0], constants.dirFast[bestMove][1]);
 	}
 
 	getAttackScore(bc, other){
 		//Attack closest and highest ID
-		let distScore = (100 - this.distSquared([bc.me.x, bc.me.y], [other.x, other.y])) * 1000;
+		let distScore = (100 - this.distSquared([bc.me.x, bc.me.y], [other.x, other.y])) * 100;
+		if (other.unit == SPECS.PROPHET){
+			distScore += 1000000;
+		}
+		else if (other.unit == SPECS.CRUSADER || other.unit == SPECS.PREACHER){
+			distScore += 500000;
+		}
+		else if (other.unit == SPECS.CASTLE){
+			distScore += 250000;
+		}
 		return distScore + other.id;
+	}
+
+
+}
+
+/**
+	This class provides methods specific to the crusader
+*/
+
+class Church extends AbstractUnit{
+	/**
+		Creates an instance of the abstract unit
+		@param battleCode the main class provided by the battlecode source
+	*/
+	constructor(bc){
+		super(bc);
+		//this.centroids = super.kMeansMulti(bc, constants.numkMeansIter, constants.num_workers);
+		this.signal_queue = []; //Queue to be used to signal units
+		this.resource_pref = 1; //0 => both deposits, 1 => karbonite, 2 => fuel (Set this before building pilgrims)
+		this.allTargets = this.getDeposits(bc, 0); //A reference to every deposit
+		//Get idx from pilgrim, used to communicate status
+		this.churchIdx = 0;
+		for (let i = 0; i < this.visibleRobots.length; i++){
+			let robot = this.visibleRobots[i];
+			if (robot.unit == SPECS.PILGRIM && this.distSquared([robot.x, robot.y], [bc.me.x, bc.me.y]) <= 2
+				&& robot.signal != -1){
+				this.churchIdx = robot.signal - 12288; //Signal with 12288 added to it
+			}
+		}
+		this.myTargets = []; //[[idx, pos]]
+		//Get resource tiles that this church is in charge of
+		for (let i = 0; i < this.allTargets.length; i++){
+			let deposit = this.allTargets[i];
+			if (this.distSquared(deposit, [bc.me.x, bc.me.y]) <= constants.clusterRadius){
+				//Build 
+				this.myTargets.push([i, this.allTargets[i]]);
+			}
+		}
+		//Sort resource tiles by karbonite first, fuel second
+		this.myTargets.sort((target1, target2) => {
+			let targetType1 = 1;
+			if (bc.karbonite_map[target1[1][1]][target1[1][0]]){
+				targetType1 = 0;
+			}
+			let targetType2 = 1;
+			if (bc.karbonite_map[target2[1][1]][target2[1][0]]){
+				targetType2 = 0;
+			}
+			if (targetType1 != targetType2){
+				return targetType1 - targetType2;
+			}
+			else{
+				//Compare by ID
+				return target1[0] - target2[0];
+			}
+		});
+		//bc.log("On Init Targets");
+		//bc.log(this.myTargets)
+		this.myPilgrims = {}; //Maps each robot ID to its target resource tile
+		this.lastDepositId = this.myTargets[0][0]; //To be set whenever making a pilgrim, set to 0 because first pilgrim will mine deposit 0
+		//TODO: Harvest karbonite before fuel tiles
+	}
+
+	takeTurn(bc){
+		/*
+			Guide to castle talk:
+			0 - 64 => target x or y location (within first 5 turns)
+			64 + targetIdx => pilgrims with their target IDs
+			253 - targetIdx (> 220) => Normal Church with their position IDs
+			254 => Under attack (Castle Only)
+			255 => normal operation
+		*/
+		super.takeTurn(bc); //Perform any behaviour shared by all units before taking 
+		let newPilgrims = {};
+		//Read any messages to update friendly castle positions
+		for (let i = 0; i < this.visibleRobots.length; i++){
+			let robot = this.visibleRobots[i];
+			//Read messages from pilgrims
+			if (robot.team == bc.me.team && robot.unit == SPECS.PILGRIM){
+				let signal = robot.signal;
+				//Castle signal
+				//bc.log(`Read signal ${signal}`);
+				if (signal == -1);
+				else if (signal < 4096){
+					bc.log(`Noted: Friendly Castle at (${Math.floor(signal / 64)}, ${signal % 64})`);
+					//Multiply / Divide by 64 to store info
+					let newCastle = [Math.floor(signal / 64), signal % 64];
+					this.addFriendlyCastle(newCastle);
+					this.enemy_castles = this.getEnemyCastles(bc, this.friendly_castles);
+				}
+				if (!this.myPilgrims.hasOwnProperty(robot.id)){
+					newPilgrims[robot.id] = this.lastDepositId;
+				}
+				else{
+					newPilgrims[robot.id] = this.myPilgrims[robot.id];
+				}
+			}
+		}
+		//bc.log(this.friendly_castles)
+		this.myPilgrims = newPilgrims;
+		//Castle talk to indicate church and status
+		bc.castleTalk(253 - this.churchIdx);
+		if (this.should_micro){
+			//I'm currently on alert, should build units
+			return this.buildUnit(bc, constants.alertUnitType);
+		}
+		else{
+			this.validTargets = [];
+			let harvestedTargets = Object.values(this.myPilgrims);
+			//bc.log("Harvested Targets");
+			//bc.log(harvestedTargets);
+			//bc.log("My Targets");
+			//bc.log(this.myTargets);
+			for (let i = 0; i < this.myTargets.length; i++){
+				let isValid = true;
+				for (let j = 0; j < harvestedTargets.length; j++){
+					if (this.myTargets[i][0] == harvestedTargets[j]){
+						isValid = false;
+						break;
+					}
+				}
+				if (isValid){
+					this.validTargets.push(this.myTargets[i]);
+				}
+			}
+			let unitBuildType = SPECS.PILGRIM;
+			if (this.validTargets.length == 0){
+				//Build prophets
+				unitBuildType = SPECS.PROPHET;
+			}
+			//Build pilgrim, if not build prophet
+			let action = null;
+			if (unitBuildType == SPECS.PILGRIM){
+				action = this.buildUnit(bc, unitBuildType, constants.churchKarboniteReserve);
+			}
+			else{
+				action = this.buildUnit(bc, unitBuildType, constants.karboniteReserve, constants.noRobotFuel);
+			}
+			if (this.signal_queue.length > 0){
+				let signal = this.signal_queue.splice(0, 1)[0];
+				this.signalAllies(bc, signal);
+			}
+			return action;
+		}
+	}
+
+	buildUnit(bc, unitType, minKarbLeft = 0, minFuelLeft = 0){
+		if (!this.hasEnoughResources(bc, unitType, minKarbLeft, minFuelLeft)){
+			return;
+		}
+		bc.log(`Building Unit (type:${unitType})`);
+		const dir = [[0,-1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]];
+		for (let i = 0; i < dir.length; i++){
+			//No resources, can't build unit
+			let nx = bc.me.x + dir[i][0];
+			let ny = bc.me.y + dir[i][1];
+			if (unitType == SPECS.PILGRIM){
+				if (!this.isOccupied(bc, nx, ny)){
+					//TODO: Compute mining target
+					let targetIdx = this.validTargets[0][0];
+					this.lastDepositId = targetIdx;
+					this.signal_queue.unshift(4096 + targetIdx);
+					return bc.buildUnit(unitType, dir[i][0], dir[i][1]);
+				}
+			}
+			else{
+				if (!this.isOccupied(bc, nx, ny)){
+					//Add all friendly castles to signal queue
+					for (let j = 0; j < this.friendly_castles.length; j++){
+						let castle = this.friendly_castles[j];
+						this.signal_queue.push(castle[0] * 64 + castle[1]);
+					}
+					//Build a unit all around me
+					return bc.buildUnit(unitType, dir[i][0], dir[i][1]);
+				}
+			}
+		}
+		bc.log("Could not place unit!!");
+	}
+
+	signalAllies(bc, signal){
+		/*
+			Guide to signals:
+			< 4096 => Allied castle location signal (x * 64 + y)
+			4096 - 8191 => signal - 4096 is the location on resource array to gather at
+			8192 - 12287 => Alert signal, signal - 8192 is the location on map where an attack is reported
+			12288 - 16383 => Used to convey church index to new churches, also used to convey build church order to pilgrims
+		*/
+		let radius = 1;
+		if (signal < 4096){
+			for (let i = 0; i < this.visibleRobots.length; i++){
+				let robot = this.visibleRobots[i];
+				if (robot.unit == SPECS.CASTLE || robot.unit == SPECS.PILGRIM || robot.unit == SPECS.CHURCH){
+					continue;
+				}
+				if (robot.x == null || robot.y == null){
+					continue;
+				}
+				let distSquared = this.distSquared([bc.me.x, bc.me.y], [robot.x, robot.y]);
+				radius = Math.max(radius, Math.min(distSquared, constants.maxSignalRadius));
+			}
+		}
+		else if (signal < 8192){
+			radius = 2;
+		}
+		bc.log(`Church Signalling ${signal} at radius ${radius}`);
+		if (radius == 0){
+			return;
+		}
+		bc.signal(signal, radius);
 	}
 
 
@@ -1701,6 +2224,9 @@ class MyRobot extends BCAbstractRobot {
             }
             else if (this.me.unit == SPECS.PROPHET){
                 this.robot = new Prophet(this);
+            }
+            else if (this.me.unit == SPECS.CHURCH){
+                this.robot = new Church(this);
             }
         }
         return this.robot.takeTurn(this);
