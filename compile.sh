@@ -1,1 +1,1 @@
-bc19compile -d bots/guanplayer4 -f -o bots/guanplayer4/compiled_bot.js
+bc19compile -d bots/guanplayer5 -f -o bots/guanplayer5/compiled_bot.js

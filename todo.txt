@@ -41,11 +41,13 @@ Critical
 Check pilgrim numbers => Could be bug
 
 Next Task
-=> Improve castle macro, build like they're churches (always build pilgrim first and fill up pilgrim slots), build churches earlier
-=> Debug church building, same churches being built, same resources being mined (Why??)
 => Pilgrims killed => Spawn combat units, treat as alert
+=> Disable karbonite mining if karbonite more than 500 (Pilgrims sit on karbonite deposits)
+(Have enough fuels for prophets to shoot)
+=> Better army management (Clump together, have movement formation)
 => Don't replenish pilgrims mining in dangerous positions, remove deposits that are close to enemy castles
 => Move units up to defend church locations
+=> Resource sniping, macro aggressiveness control
 Get units to church locations in early game
 Send units to guard churches when they are being built !!
 Gradiented score based on distance away from enemy units
