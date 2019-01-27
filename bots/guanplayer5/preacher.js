@@ -124,6 +124,9 @@ export class Preacher extends AbstractUnit{
 					else if (other.unit == SPECS.CASTLE || other.unit == SPECS.CHURCH){
 						score += mult * 250000;
 					}
+					else if (other.unit == SPECS.PILGRIM){
+						score += mult * 1000;
+					}
 				}
 			}
 		}

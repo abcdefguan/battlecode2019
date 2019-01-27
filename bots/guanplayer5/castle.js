@@ -79,8 +79,8 @@ export class Castle extends AbstractUnit{
 		else if (bc.me.turn == 5){
 			//Share location y coordinate with other castles
 			bc.castleTalk(bc.me.y + 1);
-			bc.log("Other Castles");
-			bc.log(this.other_castles);
+			//bc.log("Other Castles");
+			//bc.log(this.other_castles);
 			//Read location y coordinate of other castles
 			for (let i = 0; i < this.visibleRobots.length; i++){
 				let robot = this.visibleRobots[i];
@@ -210,7 +210,7 @@ export class Castle extends AbstractUnit{
 				}
 			}
 			//Build attack units if all else fails
-			let action = this.buildUnit(bc, SPECS.PILGRIM, constants.karboniteReserve, constants.noRobotFuel);
+			let action = this.buildUnit(bc, SPECS.PROPHET, constants.karboniteReserve, constants.noRobotFuel);
 			if (this.signal_queue.length > 0){
 				let signal = this.signal_queue.splice(0, 1)[0];
 				this.signalAllies(bc, signal);
@@ -289,7 +289,7 @@ export class Castle extends AbstractUnit{
 							bc.log("Could not reach any mining targets");
 							return;
 						}
-						//bc.log("Building Pilgrim, target: " + targetIdx);
+						bc.log("Building Pilgrim, target: " + targetIdx);
 						this.lastDepositId = targetIdx;
 						//bc.log(`Signalling index ${targetIdx} to pilgrim`);
 						this.signal_queue.unshift(4096 + targetIdx);
@@ -367,7 +367,8 @@ export class Castle extends AbstractUnit{
 				continue;
 			}
 			if (!this.myPilgrims.hasOwnProperty(robot.id)){
-				if (this.distSquared([robot.x, robot.y], [bc.me.x, bc.me.y]) <= 2 && this.lastDepositId != -1){
+				//bc.log(`Has new pilgrim at ${this.distSquared([robot.x, robot.y], [bc.me.x, bc.me.y])}, deposit ID is ${this.lastDepositId}`);
+				if (this.distSquared([robot.x, robot.y], [bc.me.x, bc.me.y]) <= 9 && this.lastDepositId != -1){
 					newPilgrims[robot.id] = this.lastDepositId;
 				}
 			}
@@ -390,7 +391,7 @@ export class Castle extends AbstractUnit{
 	}
 
 	getUnminedDeposits(bc, resource_pref = 0){
-		let unminedDeposits = this.getDeposits(bc, this.resource_pref);
+		let unminedDeposits = this.getDeposits(bc, this.resource_pref);//this.getSafeDeposits(bc, this.enemy_castles, this.resource_pref);
 		let miningDeposits = this.getMiningDeposits();
 		//Remove excluded targets from legit targets
 		for (let j = 0; j < unminedDeposits.length; j++){

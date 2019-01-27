@@ -385,7 +385,7 @@ export class AbstractUnit{
 			positions.push([friendlyCastles[i][0], friendlyCastles[i][1]]);
 		}
 		for (let i = 0; i < enemyCastles.length; i++){
-			positions.push([friendlyCastles[i][0], friendlyCastles[i][1]]);
+			positions.push([enemyCastles[i][0], enemyCastles[i][1]]);
 		}
 		//Eliminate all coordinates that are already processed
 		for (let i = 0; i < positions.length; i++){
@@ -483,6 +483,41 @@ export class AbstractUnit{
 		let targets = [];
 		for (let i = 0; i < bc.map.length; i++){
 			for (let j = 0; j < bc.map[i].length; j++){
+				if (depositType == 0){
+					if (bc.karbonite_map[i][j] == true || bc.fuel_map[i][j] == true){
+						targets.push([j, i]);
+					}
+				}
+				else if (depositType == 1){
+					if (bc.karbonite_map[i][j] == true){
+						targets.push([j, i]);
+					}
+				}
+				else if (depositType == 2){
+					if (bc.fuel_map[i][j] == true){
+						targets.push([j, i]);
+					}
+				}
+			}
+		}
+		return targets;
+	}
+
+	getSafeDeposits(bc, enemyCastles, depositType = 0){
+		let targets = [];
+		for (let i = 0; i < bc.map.length; i++){
+			for (let j = 0; j < bc.map[i].length; j++){
+				let isSafe = true;
+				for (let k = 0; k < enemyCastles.length; k++){
+					let castle = enemyCastles[k];
+					if (this.distSquared([j, i], castle) <= constants.clusterRadius){
+						isSafe = false;
+						break;
+					}
+				}
+				if (!isSafe){
+					continue;
+				}
 				if (depositType == 0){
 					if (bc.karbonite_map[i][j] == true || bc.fuel_map[i][j] == true){
 						targets.push([j, i]);
@@ -690,7 +725,7 @@ export class AbstractUnit{
 	}
 
 	spreadoutMove(bc){
-		bc.log("Spreading Out");
+		//bc.log("Spreading Out");
 		if ((bc.me.x - this.ownerCastle[0] + bc.me.y - this.ownerCastle[1]) % 2 == 0 
 			&& !bc.karbonite_map[bc.me.y][bc.me.x] && !bc.fuel_map[bc.me.y][bc.me.x]){
 			return;
@@ -700,10 +735,10 @@ export class AbstractUnit{
 			//Request more actions to perform
 			this.actions = this.makeMoveQueue(bc, bc.me.x, bc.me.y, this.oddTiles, constants.dirFuelSave, false);
 		}
-		bc.log(`I'm at ${bc.me.x},${bc.me.y}`)
+		/*bc.log(`I'm at ${bc.me.x},${bc.me.y}`)
 		bc.log(`My castle is ${this.ownerCastle}`)
 		bc.log(`My targets are: ${this.oddTiles}`)
-		bc.log(`My actions are: ${this.actions}`)
+		bc.log(`My actions are: ${this.actions}`)*/
 		if (this.actions.length != 0){
 			let action = this.actions.splice(0, 1)[0];
 			//Check if move is valid, if not request additional moves
