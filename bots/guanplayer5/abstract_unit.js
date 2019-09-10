@@ -707,8 +707,8 @@ export class AbstractUnit{
 
 	getOddTiles(bc){
 		let ans = [];
-		for (let i = -10; i < 10; i++){
-			for (let j = -10; j < 10; j++){
+		for (let i = -20; i < 20; i++){
+			for (let j = -20; j < 20; j++){
 				let nx = this.ownerCastle[0] + i;
 				let ny = this.ownerCastle[1] + j;
 				if ((i + j) % 2 != 0){
